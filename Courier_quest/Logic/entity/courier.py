@@ -1,8 +1,8 @@
 # src/models/courier.py
 
 from typing import Tuple, List
-from models.job import Job
-from models.inventory import Inventory
+from Logic.entity.job import Job
+from Logic.entity.inventory import Inventory
 
 
 class Courier:

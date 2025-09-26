@@ -1,7 +1,7 @@
 # src/models/inventory.py
 
 from typing import List, Optional
-from models.job import Job
+from Logic.entity.job import Job
 
 
 class Inventory:

@@ -1,11 +1,11 @@
-from services.api_service import APIService
-from models.city_map import CityMap
-from models.job import Job
-from models.weather_burst import WeatherBurst
-from models.courier import Courier
+from Data.api_service import APIService
+from Logic.entity.city_map import CityMap
+from Logic.entity.job import Job
+from Logic.entity.weather_burst import WeatherBurst
+from Logic.entity.courier import Courier
 
 
-class GameEngine:
+class controller_game:
     """
     Motor del juego: carga mapa, pedidos, clima (stub) e inicializa Courier.
     """

@@ -3,7 +3,7 @@
 import heapq
 from typing import Dict, List, Optional, Tuple
 
-from models.city_map import CityMap
+from entity.city_map import CityMap
 
 
 class PathFinder:
