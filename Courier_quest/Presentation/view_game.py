@@ -26,7 +26,7 @@ class View_game:
 
         self.move_timer = 0.0
         self.move_delay = 0.2 
-        self.current_direction = 1  # Dirección actual (0=izquierda, 1=derecha)
+        self.current_direction = 1  
 
         # Assets dentro de src/assets/
         assets_dir = Path(r"C:\Users\jarod\Documents\Universidad\ll Semestre 2025\Estructuras\Courier_quest\src\assets")
@@ -46,7 +46,7 @@ class View_game:
 
         # Cargar texturas de tiles
         self.tile_images = {}
-        mapping = {"C": "road.png", "B": "building.png", "P": "park.png"}
+        mapping = {"C": "road.png", "B": "building.png", "P": "park.png", "W":"window.PNG","G":"ground.PNG","PE":"window_job.png"}
         for key, fname in mapping.items():
             img_path = tiles_dir / fname
             if img_path.exists():
@@ -70,10 +70,10 @@ class View_game:
         try:
             # Definir las rutas de las imágenes
             image_files = {
-                0: "tiggermovil_izquierda_solo.PNG",  # Izquierda
-                1: "tiggermovil_derecha_solo.PNG",    # Derecha
-              #  2: "tiggermovil_arriba_solo.PNG",     # Arriba (si existe)
-              #  3: "tiggermovil_abajo_solo.PNG"       # Abajo (si existe)
+                0: "tiggermovil_izquierda_job.PNG",  # Izquierda
+                1: "tiggermovil_derecha_job.PNG",    # Derecha
+                2: "tiggermovil_arriba_job.PNG",     # Arriba (si existe)
+                3: "tiggermovil_abajo_solo.PNG"       # Abajo (si existe)
             }
             
             for direction, filename in image_files.items():
@@ -83,9 +83,9 @@ class View_game:
                     # Escalar a 1.5x el tamaño de la celda
                     new_size = int(CELL_SIZE * 1.5)
                     self.courier_images[direction] = pygame.transform.scale(img, (new_size, new_size))
-                    print(f"✅ Cargada: {filename}")
+                    print(f" Cargada: {filename}")
                 else:
-                    print(f"⚠️  No encontrada: {filename}")
+                    print(f" No encontrada: {filename}")
                     self.courier_images[direction] = None
             
             # Si no hay imágenes, crear un diccionario vacío
@@ -93,7 +93,7 @@ class View_game:
                 self.courier_images = {}
                 
         except Exception as e:
-            print(f"❌ Error cargando imágenes del courier: {e}")
+            print(f"Error cargando imágenes del courier: {e}")
             self.courier_images = {}
 
     def run(self):
@@ -156,12 +156,15 @@ class View_game:
         self._draw_hud()
 
     def _draw_map(self):
-        """Pintar cada celda; usar imagen o color de fallback."""
-        cmap = self.engine.city_map
-
-        for y in range(cmap.height):
-            for x in range(cmap.width):
-                key = cmap.tiles[y][x]
+      cmap = self.engine.city_map
+    
+    # Primero dibujar calles y parques individualmente
+      for y in range(cmap.height):
+        for x in range(cmap.width):
+            key = cmap.tiles[y][x]
+            
+            # Solo dibujar calles y parques individualmente, no edificios
+            if key in ['C', 'P']:
                 img = self.tile_images.get(key)
                 if img:
                     self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
@@ -169,8 +172,6 @@ class View_game:
                     name = cmap.legend[key].get("name", "")
                     if name == "calle":
                         color = (190, 190, 190)
-                    elif name == "edificio":
-                        color = (100, 100, 100)
                     elif name == "parque":
                         color = (144, 238, 144)
                     else:
@@ -184,24 +185,77 @@ class View_game:
                     )
                     pygame.draw.rect(self.screen, color, rect)
 
-                pygame.draw.rect(
-                    self.screen,
-                    (50, 50, 50),
-                    (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE),
-                    1
-                )
+            # Dibujar bordes para todas las celdas
+            pygame.draw.rect(
+                self.screen,
+                (50, 50, 50),
+                (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE),
+                1
+            )
+    
+    # Luego dibujar edificios como bloques completos con partes diferenciadas
+      bloques_edificios = cmap.detectar_bloques()
+      building_img = self.tile_images.get('B')
+      window_img = self.tile_images.get('W')  # Imagen para ventanas
+      ground_img = self.tile_images.get('G')  # Imagen para base/ground
+      
+      for bloque in bloques_edificios:
+        x = bloque['x']
+        y = bloque['y']
+        w = bloque['width']
+        h = bloque['height']
+        
+        # Crear rectángulo del edificio completo
+        building_rect = pygame.Rect(
+            x * CELL_SIZE,
+            y * CELL_SIZE,
+            w * CELL_SIZE,
+            h * CELL_SIZE
+        )
+        
+        # Dibujar el edificio completo con partes diferenciadas
+        if building_img or window_img or ground_img:
+            # Crear una superficie temporal para el edificio completo
+            edificio_completo = pygame.Surface((w * CELL_SIZE, h * CELL_SIZE), pygame.SRCALPHA)
+            
+            # Rellenar con las texturas apropiadas para cada parte
+            for i in range(w):  # Columnas
+                for j in range(h):  # Filas
+                    pos_x = i * CELL_SIZE
+                    pos_y = j * CELL_SIZE
+                    
+                    # Determinar qué imagen usar según la posición en el edificio
+                    if j == h - 1:  # Última fila (base/ground)
+                        if ground_img:
+                            edificio_completo.blit(ground_img, (pos_x, pos_y))
+                        elif building_img:
+                            edificio_completo.blit(building_img, (pos_x, pos_y))
+                    else:  # Cuerpo del edificio (ventanas)
+                        if window_img:
+                            edificio_completo.blit(window_img, (pos_x, pos_y))
+                        elif building_img:
+                            edificio_completo.blit(building_img, (pos_x, pos_y))
+            
+            # Dibujar el edificio completo de una vez
+            self.screen.blit(edificio_completo, building_rect)
+        else:
+            # Fallback: dibujar rectángulo sólido
+            pygame.draw.rect(self.screen, (100, 100, 100), building_rect)
+        
+        # Dibujar bordes alrededor del bloque completo (opcional)
+        pygame.draw.rect(
+            self.screen,
+            (30, 30, 30),
+            building_rect,
+            2  # Borde más grueso para el bloque completo
+        )
 
     def _draw_jobs(self):
         """Dibujar puntos de recogida en azul."""
         for job in self.engine.jobs:
             x, y = job.pickup
-            rect = pygame.Rect(
-                x * CELL_SIZE + 8,
-                y * CELL_SIZE + 8,
-                CELL_SIZE - 16,
-                CELL_SIZE - 16
-            )
-            pygame.draw.rect(self.screen, (0, 0, 255), rect)
+            img = self.tile_images.get("PE")
+            self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
     def _draw_courier(self):
         """Dibujar courier con la imagen correcta según dirección."""
