@@ -15,29 +15,48 @@ class GameService:
            self.last_picked = self.job_example
 
     def job_most_nearly(self, curr_position):
-       """Busca el job más cercano a la posición del jugador.
-       """
-       if not self.jobs:
+      """
+      Busca el job más cercano a la posición del jugador.
+      """
+      if not self.jobs:
         return None  # Si la lista está vacía
-       nearest : Job = self.jobs[0]
-       min_dist = self.distance(nearest.pickup, curr_position)
 
-       for job  in self.jobs[1:]:
-           job : Job
-           d = self.distance(job.pickup, curr_position)
-           if d < min_dist:
-               nearest = job
-               min_dist = d
+      nearest: Job = None
+      min_dist = float("inf")
 
-       return nearest
-    
+      for job in self.jobs:
+          d = self.distance(job.pickup, curr_position)
+          if d <= 5 and d < min_dist:  # 🔥 dentro del rango y más cercano
+             nearest = job
+             min_dist = d
+
+      return nearest
+
     def distance(self,a, b):
       """Distancia euclidiana entre dos puntos (x1, y1) y (x2, y2).
       """
       return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
+
+
     
     def get_last_picked(self):
+        """"
+        Devuelve el último trabajo recogido.
+        """
         return self.last_picked
     
     def set_last_picked(self,job):
+        """
+        Establece el último trabajo recogido.
+        """
         self.last_picked = job
+
+    def sort_jobs_by_priority(self):
+        """Ordena la lista de trabajos por prioridad (mayor prioridad primero)."""
+        self.courier.inventory.items.sort(key=lambda job: job.priority, reverse=True)
+
+    def sort_jobs_by_deadline(self):
+        """Ordena la lista de trabajos por fecha límite (más cercana primero)."""
+        self.courier.inventory.items.sort(key=lambda job: job.deadline)
+
+    
