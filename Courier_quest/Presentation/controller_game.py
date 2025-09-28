@@ -92,3 +92,6 @@ class controller_game:
         """
         self.load_world()
         print("Juego iniciado correctamente.")
+
+    def move_courier(self,dx,dy):
+        self.courier.move_courier(self.city_map.width,self.city_map.height,self.city_map,dx,dy)

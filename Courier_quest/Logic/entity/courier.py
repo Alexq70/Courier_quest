@@ -3,6 +3,7 @@
 from typing import Tuple, List
 from Logic.entity.job import Job
 from Logic.entity.inventory import Inventory
+from Logic.entity.city_map import CityMap
 
 
 class Courier:
@@ -47,6 +48,13 @@ class Courier:
             self.delivered_jobs.append(job)
             self.current_load = self.inventory.total_weight()
         return removed
+    
+    def move_courier(self,width,height,citymap, dx: int, dy: int):
+        x, y = self.position
+        nx, ny = x + dx, y + dy
+        cmap = citymap
+        if (0 <= nx < width and 0 <= ny < height and not cmap.is_blocked(nx, ny)):
+            self.move_to((nx, ny))
 
     def move_to(self, position: Tuple[int, int]) -> None:
         """
