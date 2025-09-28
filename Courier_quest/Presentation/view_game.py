@@ -25,7 +25,7 @@ class View_game:
         self.clock = pygame.time.Clock()
 
         self.move_timer = 0.0
-        self.move_delay = 0.2 
+        self.move_delay = 0.15 
         self.current_direction = 1  
 
         #Ruta de las imagenes 
@@ -70,7 +70,9 @@ class View_game:
                 0: "tiggermovil_izquierda_job.PNG",  
                 1: "tiggermovil_derecha_job.PNG",    
                 2: "tiggermovil_arriba_job.PNG",     
-                3: "tiggermovil_abajo_solo.PNG"     
+                3: "tiggermovil_abajo_solo.PNG" ,
+                4:"tiggermovil_izquierda_whelee.PNG",
+                5:"tiggermovil_derecha_whelee.PNG"    
             }
             
             for direction, filename in image_files.items():
@@ -126,12 +128,18 @@ class View_game:
                 dy = 1
                 self.current_direction = 3  
             
-            if keys[pygame.K_LEFT]:
+            if keys[pygame.K_a]:
+                dx = -1
+                self.current_direction = 4  
+            elif keys[pygame.K_d]:
+                dx = 1
+                self.current_direction = 5 
+            if keys[pygame.K_LEFT ]:
                 dx = -1
                 self.current_direction = 0  
-            elif keys[pygame.K_RIGHT]:
+            elif keys[pygame.K_RIGHT ]:
                 dx = 1
-                self.current_direction = 1  
+                self.current_direction = 1 
             
             if dx or dy:
                 self._move_courier(dx, dy)
@@ -235,7 +243,6 @@ class View_game:
             self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
     def _draw_courier(self):
-        """Dibujar courier con la imagen correcta según dirección."""
         x, y = self.engine.courier.position
         px, py = x * CELL_SIZE, y * CELL_SIZE
 
