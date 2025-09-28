@@ -26,6 +26,9 @@ class Courier:
         self.delivered_jobs: List[Job] = []
 
     def can_carry(self, weight: float) -> bool:
+        """
+        retorna si el peso del pedido nosobrepasa la carga maxima
+        """
         return self.inventory.can_add(Job(weight=weight, **{}))
 
     def pick_job(self, job: Job) -> bool:

@@ -1,4 +1,5 @@
 from Data.api_service import APIService
+from Data.game_service import GameService
 from Logic.entity.city_map import CityMap
 from Logic.entity.job import Job
 from Logic.entity.weather_burst import WeatherBurst
@@ -12,6 +13,7 @@ class controller_game:
 
     def __init__(self):
         self.api = APIService()
+        self.game_service = None
         self.city_map = None
         self.jobs = []
         self.weather = []
@@ -19,7 +21,7 @@ class controller_game:
 
     def _deep_unwrap(self, resp: dict) -> dict:
         """
-        Elimina niveles anidados de 'data' hasta el dict interno.
+        Retorna la informacion mas profunda del diccionario
         """
         current = resp
         while (
@@ -47,6 +49,15 @@ class controller_game:
                 if found:
                     return found
         return None
+    
+    def job_nearly(self):
+        return self.game_service.job_most_nearly(self.courier.position)
+    
+    def last_job_picked(self):
+        return self.game_service.get_last_picked()
+    
+    def set_last_picked(self,job):
+        self.game_service.set_last_picked(job)
 
     def load_world(self):
         # 1) Mapa
@@ -83,7 +94,7 @@ class controller_game:
         self.weather = [WeatherBurst(**w) for w in bursts]
 
         # 4) Courier
-        self.courier = Courier(start_pos=(15, 15), max_weight=10)
+        self.courier = Courier(start_pos=(0, 0), max_weight=10)
         print(f"Courier inicializado en {self.courier.position}")
 
     def start(self):
@@ -91,6 +102,7 @@ class controller_game:
         Arranca la carga del mundo y ejecuta el juego.
         """
         self.load_world()
+        self.game_service = GameService(self.jobs,self.weather,self.city_map,self.courier)
         print("Juego iniciado correctamente.")
 
     def move_courier(self,dx,dy):

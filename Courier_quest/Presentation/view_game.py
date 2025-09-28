@@ -30,7 +30,7 @@ class View_game:
 
         #Ruta de las imagenes 
 
-        assets_dir = Path(r"C:\Users\jarod\Documents\Universidad\ll Semestre 2025\Estructuras\Courier_quest\src\assets")
+        assets_dir = Path(r"C:\Users\ALEXQUESADABERMUDEZ\Documents\GitHub\Courier_quest\src\assets")
         tiles_dir = assets_dir / "tiles"
         
         self.courier_images = {}
@@ -45,7 +45,7 @@ class View_game:
 
 #diccionario para cargar las imagenes
         self.tile_images = {}
-        mapping = {"C": "road.png", "B": "building.png", "P": "park.png", "W":"window.PNG","G":"ground.PNG","PE":"window_job.png"}
+        mapping = {"C": "road.png", "P": "park.png", "W":"window.PNG","G":"ground.PNG","PE":"window_job.png", "D":"drop_off.png"}
         for key, fname in mapping.items():
             img_path = tiles_dir / fname
             if img_path.exists():
@@ -121,6 +121,9 @@ class View_game:
             keys = pygame.key.get_pressed()
             dx = dy = 0
             
+            if keys[pygame.K_e]:
+                self._pickup_job()
+
             if keys[pygame.K_UP]:
                 dy = -1
                 self.current_direction = 2  
@@ -155,6 +158,9 @@ class View_game:
 
     def _draw_map(self):
       cmap = self.engine.city_map
+      # cambiar leyenda de la coordenda del pedido tomado
+      job = self.reprint_job(cmap)
+
       for y in range(cmap.height):
         for x in range(cmap.width):
             key = cmap.tiles[y][x]
@@ -190,6 +196,11 @@ class View_game:
       building_img = self.tile_images.get('B')
       window_img = self.tile_images.get('W') 
       ground_img = self.tile_images.get('G')  
+      npc_image = self.tile_images.get('D')
+      if job:
+        x_npc, y_npc = job
+        if npc_image:
+            self.screen.blit(npc_image, (x_npc * CELL_SIZE, y_npc * CELL_SIZE))
       
       for bloque in bloques_edificios:
         x = bloque['x']
@@ -242,6 +253,14 @@ class View_game:
             img = self.tile_images.get("PE")
             self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
+    def _update_job(self,job):
+        """
+        Quita el pedido del mapa y actualiza el inventario
+        """
+        if self.engine.courier.inventory.add_job(job):
+           self.engine.set_last_picked(job)
+           self.engine.jobs.remove(job)
+
     def _draw_courier(self):
         x, y = self.engine.courier.position
         px, py = x * CELL_SIZE, y * CELL_SIZE
@@ -273,3 +292,23 @@ class View_game:
             f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
         )
         self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
+
+    def _pickup_job(self):
+        """
+        verifica si el jugador esta recogiendo un pedido, y si si lo recoge y actualiza todo
+        """
+        self._update_job(self.engine.job_nearly())
+
+    def reprint_job(self,map):
+      """
+      Actualiza la vista del ultimo recogido pedido en el mapa
+      """
+      job = self.engine.last_job_picked()
+      dropoff = job.dropoff
+
+      if dropoff != (0,0):
+          c1,c2 = dropoff
+          map.tiles[c1][c2] = 'D'
+
+          return dropoff
+
