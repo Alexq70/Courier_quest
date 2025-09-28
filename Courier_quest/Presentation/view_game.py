@@ -71,8 +71,8 @@ class View_game:
                 1: "tiggermovil_derecha_job.PNG",    
                 2: "tiggermovil_arriba_job.PNG",     
                 3: "tiggermovil_abajo_solo.PNG" ,
-                4:"tiggermovil_izquierda_whelee.PNG",
-                5:"tiggermovil_derecha_whelee.PNG"    
+                4:"tiggermovil_izquierda_job_whelee.PNG",
+                5:"tiggermovil_derecha_job_whelee.PNG"    
             }
             
             for direction, filename in image_files.items():
