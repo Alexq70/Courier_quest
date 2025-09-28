@@ -83,7 +83,7 @@ class controller_game:
         self.weather = [WeatherBurst(**w) for w in bursts]
 
         # 4) Courier
-        self.courier = Courier(start_pos=(0, 0), max_weight=10)
+        self.courier = Courier(start_pos=(15, 15), max_weight=10)
         print(f"Courier inicializado en {self.courier.position}")
 
     def start(self):
