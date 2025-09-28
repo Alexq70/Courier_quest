@@ -30,7 +30,7 @@ class View_game:
 
         #Ruta de las imagenes 
 
-        assets_dir = Path(r"C:\Users\ALEXQUESADABERMUDEZ\Documents\GitHub\Courier_quest\src\assets")
+        assets_dir = Path(__file__).parent.parent.parent / "src" / "assets"
         tiles_dir = assets_dir / "tiles"
         
         self.courier_images = {}
@@ -45,7 +45,7 @@ class View_game:
 
 #diccionario para cargar las imagenes
         self.tile_images = {}
-        mapping = {"C": "road.png", "P": "park.png", "W":"window.PNG","G":"ground.PNG","PE":"window_job.png", "D":"drop_off.png"}
+        mapping = {"C": "road.png", "P": "park.png", "W":"window.PNG","G":"ground.PNG","PE":"window_job.png", "D":"drop_off.png","W_NPC":"window_npc.png","G_NPC":"ground_npc.png"}
         for key, fname in mapping.items():
             img_path = tiles_dir / fname
             if img_path.exists():
@@ -158,14 +158,13 @@ class View_game:
 
     def _draw_map(self):
       cmap = self.engine.city_map
-      # cambiar leyenda de la coordenda del pedido tomado
       job = self.reprint_job(cmap)
 
       for y in range(cmap.height):
         for x in range(cmap.width):
             key = cmap.tiles[y][x]
             
-            if key in ['C', 'P']:
+            if key in ['C', 'P']: 
                 img = self.tile_images.get(key)
                 if img:
                     self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
@@ -185,6 +184,7 @@ class View_game:
                         CELL_SIZE
                     )
                     pygame.draw.rect(self.screen, color, rect)
+            
             pygame.draw.rect(
                 self.screen,
                 (50, 50, 50),
@@ -197,11 +197,7 @@ class View_game:
       window_img = self.tile_images.get('W') 
       ground_img = self.tile_images.get('G')  
       npc_image = self.tile_images.get('D')
-      if job:
-        x_npc, y_npc = job
-        if npc_image:
-            self.screen.blit(npc_image, (x_npc * CELL_SIZE, y_npc * CELL_SIZE))
-      
+    
       for bloque in bloques_edificios:
         x = bloque['x']
         y = bloque['y']
@@ -215,24 +211,34 @@ class View_game:
             h * CELL_SIZE
         )
         
-        if building_img or window_img or ground_img:
+        if building_img or window_img or ground_img or npc_image:
             edificio_completo = pygame.Surface((w * CELL_SIZE, h * CELL_SIZE), pygame.SRCALPHA)
             
             for i in range(w):  
                 for j in range(h):  
                     pos_x = i * CELL_SIZE
-                    pos_y = j * CELL_SIZE
+                    pos_y = j * CELL_SIZE                  
+                    celda_x = x + i
+                    celda_y = y + j
+                    tipo_celda = cmap.tiles[celda_y][celda_x]
                     
-                    if j == h - 1:  
-                        if ground_img:
-                            edificio_completo.blit(ground_img, (pos_x, pos_y))
-                        elif building_img:
-                            edificio_completo.blit(building_img, (pos_x, pos_y))
-                    else:  
-                        if window_img:
-                            edificio_completo.blit(window_img, (pos_x, pos_y))
-                        elif building_img:
-                            edificio_completo.blit(building_img, (pos_x, pos_y))
+                    if tipo_celda == 'D' and npc_image:
+                        if h==1 and  w==1:
+                             edificio_completo.blit(npc_image, (pos_x, pos_y))
+                        elif j == h - 1:  
+                            if self.tile_images.get('G_NPC'):  
+                                edificio_completo.blit(self.tile_images['G_NPC'], (pos_x, pos_y))
+                        else:  
+                            if self.tile_images.get('W_NPC'):  
+                                edificio_completo.blit(self.tile_images['W_NPC'], (pos_x, pos_y))
+                    else:
+                        if j == h - 1:
+                            if ground_img:
+                                edificio_completo.blit(ground_img, (pos_x, pos_y))
+                        else:  
+                            if window_img:
+                                edificio_completo.blit(window_img, (pos_x, pos_y))
+                            
             
             self.screen.blit(edificio_completo, building_rect)
         else:
@@ -242,7 +248,7 @@ class View_game:
             self.screen,
             (30, 30, 30),
             building_rect,
-            2  
+            1  
         )
 
     def _draw_jobs(self):
