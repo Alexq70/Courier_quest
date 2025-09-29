@@ -143,9 +143,6 @@ class View_game:
         sys.exit()
 
     def _handle_events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
        for event in pygame.event.get():
         if event.type == pygame.QUIT:
             self.running = False   # 🔴 aquí va con self.
@@ -173,8 +170,6 @@ class View_game:
             keys = pygame.key.get_pressed()
             dx = dy = 0
             
-            if keys[pygame.K_e]:
-                self._pickup_job()
             self._pickup_job()
 
             if keys[pygame.K_UP]:
@@ -510,16 +505,6 @@ class View_game:
         w, h = self.screen.get_size()
         hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
         pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
-
-        time_surf = self.font.render(
-            f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
-        )
-        self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
-
-        earn_surf = self.font.render(
-            f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
-        )
-        self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 =======
       # Barra inferior
       w, h = self.screen.get_size()
@@ -556,7 +541,6 @@ class View_game:
         if dropoff != (0,0):
             c1, c2 = dropoff
             map.tiles[c1][c2] = 'D'
-            return dropoff            return dropoff
             return dropoff
     def reprint_job(self,map):
       """
