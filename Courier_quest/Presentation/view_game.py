@@ -505,30 +505,29 @@ class View_game:
         w, h = self.screen.get_size()
         hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
         pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
-=======
       # Barra inferior
-      w, h = self.screen.get_size()
-      hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
-      pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
+        w, h = self.screen.get_size()
+        hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
+        pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
 
       # Tiempo
-      time_surf = self.font.render(
+        time_surf = self.font.render(
           f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
-      )
-      self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
+        )
+        self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
 
       # Ingresos
-      earn_surf = self.font.render(
+        earn_surf = self.font.render(
           f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
       )
-      self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
+        self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 
       # Botón Inventario
-      self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
-      pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
+        self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
+        pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
 
-      btn_text = self.font.render("Inventario", True, (255, 255, 255))
-      self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
+        btn_text = self.font.render("Inventario", True, (255, 255, 255))
+        self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
   
 
     def _pickup_job(self):
@@ -594,4 +593,3 @@ class View_game:
        else:
            empty = self.font.render("Vacío", True, (200, 200, 200))
            self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
->>>>>>> ALEXX
