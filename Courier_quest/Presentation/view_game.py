@@ -395,12 +395,6 @@ class View_game:
                         )
                         pygame.draw.rect(self.screen, color, rect)
                 
-                pygame.draw.rect(
-                    self.screen,
-                    (50, 50, 50),
-                    (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE),
-                    1
-                )
         
         bloques_edificios = cmap.detectar_bloques()
         building_img = self.tile_images.get('B')
