@@ -145,23 +145,22 @@ class View_game:
         sys.exit()
 
     def _handle_events(self):
-       for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            self.running = False   # 🔴 aquí va con self.
-        
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-           if event.button == 1:  # clic izquierdo
-              if hasattr(self, "inv_button") and self.inv_button.collidepoint(event.pos):
-               self.show_inventory = not getattr(self, "show_inventory", False)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False   
 
-           if getattr(self, "show_inventory", False):
-               if hasattr(self, "priority_button") and self.priority_button.collidepoint(event.pos):
-                   self.engine.sort_by_priority()
-               elif hasattr(self, "deadline_button") and self.deadline_button.collidepoint(event.pos):
-                   self.engine.sort_by_deadline()
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # clic izquierdo
+                # Botón de inventario
+                if hasattr(self, "inv_button") and self.inv_button.collidepoint(event.pos):
+                    self.show_inventory = not getattr(self, "show_inventory", False)
 
+                # Si inventario está abierto, revisar botones de orden
+                if getattr(self, "show_inventory", False):
+                    if hasattr(self, "priority_button") and self.priority_button.collidepoint(event.pos):
+                        self.engine.sort_by_priority()
+                    elif hasattr(self, "deadline_button") and self.deadline_button.collidepoint(event.pos):
+                        self.engine.sort_by_deadline()
 
- 
 
     def _move_courier(self, dx, dy):
         self.engine.move_courier(dx, dy)
@@ -370,7 +369,7 @@ class View_game:
         self._draw_inventory()
 
     def _draw_map(self):
-      cmap = self.engine.city_map
+        cmap = self.engine.city_map
 
         for y in range(cmap.height):
             for x in range(cmap.width):
