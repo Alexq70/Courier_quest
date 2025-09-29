@@ -146,6 +146,23 @@ class View_game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+       for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            self.running = False   # 🔴 aquí va con self.
+        
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+           if event.button == 1:  # clic izquierdo
+              if hasattr(self, "inv_button") and self.inv_button.collidepoint(event.pos):
+               self.show_inventory = not getattr(self, "show_inventory", False)
+
+           if getattr(self, "show_inventory", False):
+               if hasattr(self, "priority_button") and self.priority_button.collidepoint(event.pos):
+                   self.engine.sort_by_priority()
+               elif hasattr(self, "deadline_button") and self.deadline_button.collidepoint(event.pos):
+                   self.engine.sort_by_deadline()
+
+
+ 
 
     def _move_courier(self, dx, dy):
         self.engine.move_courier(dx, dy)
@@ -158,6 +175,7 @@ class View_game:
             
             if keys[pygame.K_e]:
                 self._pickup_job()
+            self._pickup_job()
 
             if keys[pygame.K_UP]:
                 dy = -1
@@ -352,6 +370,7 @@ class View_game:
         # Copos AZUL BLANQUECINO
         pygame.draw.line(self.screen, (200, 230, 255), 
                         (x, y), (x + 3, y + 6), 2)
+        self._draw_inventory()
 
     def _draw_map(self):
         cmap = self.engine.city_map
@@ -458,6 +477,18 @@ class View_game:
         if self.engine.courier.inventory.add_job(job):
             self.engine.set_last_picked(job)
             self.engine.jobs.remove(job)
+    def _update_job(self,job):
+        keys = pygame.key.get_pressed()
+        """
+        Quita el pedido del mapa y actualiza el inventario
+        """
+        if keys[pygame.K_e] and job is not None:
+          if self.engine.courier.inventory.add_job(job):
+             self.engine.set_last_picked(job)
+             self.engine.jobs.remove(job)
+        if keys[pygame.K_q]:
+             self.engine.jobs.remove(job)
+    
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
@@ -489,6 +520,31 @@ class View_game:
             f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
         )
         self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
+=======
+      # Barra inferior
+      w, h = self.screen.get_size()
+      hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
+      pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
+
+      # Tiempo
+      time_surf = self.font.render(
+          f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
+      )
+      self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
+
+      # Ingresos
+      earn_surf = self.font.render(
+          f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
+      )
+      self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
+
+      # Botón Inventario
+      self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
+      pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
+
+      btn_text = self.font.render("Inventario", True, (255, 255, 255))
+      self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
+  
 
     def _pickup_job(self):
         self._update_job(self.engine.job_nearly())
@@ -500,4 +556,57 @@ class View_game:
         if dropoff != (0,0):
             c1, c2 = dropoff
             map.tiles[c1][c2] = 'D'
-            return dropoff
+            return dropoff            return dropoff
+    def reprint_job(self,map):
+      """
+      Actualiza la vista del ultimo recogido pedido en el mapa
+      """
+      job = self.engine.last_job_picked()
+      dropoff = job.dropoff
+      
+      if dropoff != (0,0):
+          c1,c2 = dropoff
+          map.tiles[c1][c2] = 'D'
+
+          return dropoff
+
+    
+    def _draw_inventory(self):
+       if not getattr(self, "show_inventory", False):
+           return
+
+       # rectángulo principal del popup
+       w, h = self.screen.get_size()
+       inv_rect = pygame.Rect(w//2 - 150, h//2 - 130, 300, 260)
+       pygame.draw.rect(self.screen, (50, 50, 50), inv_rect, border_radius=10)
+       pygame.draw.rect(self.screen, (200, 200, 200), inv_rect, 2, border_radius=10)
+
+       # título
+       title = self.font.render("Inventario", True, (255, 255, 255))
+       self.screen.blit(title, (inv_rect.x + 10, inv_rect.y + 10))
+
+       # botones para elegir orden
+       self.priority_button = pygame.Rect(inv_rect.x + 10, inv_rect.y + 40, 120, 30)
+       self.deadline_button = pygame.Rect(inv_rect.x + 150, inv_rect.y + 40, 120, 30)
+
+       pygame.draw.rect(self.screen, (100, 100, 200), self.priority_button, border_radius=5)
+       pygame.draw.rect(self.screen, (200, 100, 100), self.deadline_button, border_radius=5)
+
+       txt_p = self.font.render("Prioridad", True, (255, 255, 255))
+       txt_d = self.font.render("Entrega", True, (255, 255, 255))
+       self.screen.blit(txt_p, (self.priority_button.x + 10, self.priority_button.y + 5))
+       self.screen.blit(txt_d, (self.deadline_button.x + 10, self.deadline_button.y + 5))
+
+       # mostrar items ya ordenados por el engine
+       items = self.engine.courier.inventory.items
+       if items:
+           for i, item in enumerate(items[:5]):  # muestra hasta 5
+               txt = self.font.render(
+                   f"{i+1}. {item.pickup}->{item.dropoff} "
+                   f"${item.payout}", True, (200, 200, 50)
+               )
+               self.screen.blit(txt, (inv_rect.x + 10, inv_rect.y + 80 + i*30))
+       else:
+           empty = self.font.render("Vacío", True, (200, 200, 200))
+           self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
+>>>>>>> ALEXX
