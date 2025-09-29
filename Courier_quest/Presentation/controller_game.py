@@ -53,11 +53,17 @@ class controller_game:
     def job_nearly(self):
         return self.game_service.job_most_nearly(self.courier.position)
     
-    def last_job_picked(self):
+    def set_last_picked(self,job):
+        return self.game_service.set_last_picked(job)
+    
+    def get_last_picked(self):
         return self.game_service.get_last_picked()
     
-    def set_last_picked(self,job):
-        self.game_service.set_last_picked(job)
+    def set_last_dropped(self,job):
+        self.game_service.set_last_dropped(job)
+
+    def last_job_dropped(self):
+        return self.game_service.get_last_dropped()
 
     def load_world(self):
         # 1) Mapa
@@ -94,7 +100,7 @@ class controller_game:
         self.weather = [WeatherBurst(**w) for w in bursts]
 
         # 4) Courier
-        self.courier = Courier(start_pos=(0, 0), max_weight=10)
+        self.courier = Courier(start_pos=(0, 0), max_weight=8)
         print(f"Courier inicializado en {self.courier.position}")
 
     def start(self):
@@ -107,3 +113,6 @@ class controller_game:
 
     def move_courier(self,dx,dy):
         self.courier.move_courier(self.city_map.width,self.city_map.height,self.city_map,dx,dy)
+
+    def get_job(self, job):
+        return self.game_service.get_job(job)

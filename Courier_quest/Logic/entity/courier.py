@@ -46,7 +46,7 @@ class Courier:
         Intenta entregar un pedido:
         - Si estaba en inventory, lo remueve y pasa a delivered_jobs.
         """
-        removed = self.inventory.remove_job(job.id)
+        removed = self.inventory.remove_job(job)
         if removed:
             self.delivered_jobs.append(job)
             self.current_load = self.inventory.total_weight()

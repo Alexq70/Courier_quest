@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from Logic.entity.job import Job
 
 import pygame
 
@@ -9,7 +10,7 @@ HUD_HEIGHT = 80
 FPS = 60
 
 class View_game:
-    """Interfaz gráfica con Pygame para Courier Quest."""
+    """Interfaz gráfica con Pygame para Courier Quest.""" 
 
     def __init__(self):
         """Inicializar Pygame, motor y cargar todos los assets."""
@@ -172,7 +173,6 @@ class View_game:
 
     def _draw_map(self):
       cmap = self.engine.city_map
-      job = self.reprint_job(cmap)
 
       for y in range(cmap.height):
         for x in range(cmap.width):
@@ -272,19 +272,39 @@ class View_game:
             x, y = job.pickup
             img = self.tile_images.get("PE")
             self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+        for job in self.engine.courier.inventory.items:
+            x, y = job.dropoff
+            if (x, y) != (0, 0):  
+                img = self.tile_images.get("D")
+                self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
-    def _update_job(self,job):
+    def _update_job(self, job: Job):
+        """
+        Maneja interacciones con un job cercano usando teclas:
+        - E: tomar el job (pickup → inventario).
+        - Q: cancelar job (solo si aún no está tomado).
+        - R: entregar job (solo si está en inventario y en dropoff).
+        """
         keys = pygame.key.get_pressed()
-        """
-        Quita el pedido del mapa y actualiza el inventario
-        """
+
+        # Tomar job
         if keys[pygame.K_e] and job is not None:
-          if self.engine.courier.inventory.add_job(job):
-             self.engine.set_last_picked(job)
-             self.engine.jobs.remove(job)
-        if keys[pygame.K_q]:
-             self.engine.jobs.remove(job)
-    
+            if job not in self.engine.courier.inventory.items:  # aún no tomado
+                if self.engine.courier.pick_job(job):
+                    self.engine.jobs.remove(job)  # lo sacamos de la lista global
+                    self.engine.set_last_picked(job)
+
+        # Cancelar job (solo pickups)
+        if keys[pygame.K_q] and job is not None:
+            if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
+                self.engine.jobs.remove(job)
+
+        # Entregar job
+        if keys[pygame.K_r] and job is not None:
+            if job in self.engine.courier.inventory.items:  # está en inventario
+                if job == self.engine.last_job_dropped():   # estás en su dropoff
+                    self.earned += job.payout
+                    self.engine.courier.inventory.remove_job(job)
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
@@ -334,19 +354,6 @@ class View_game:
         """
         self._update_job(self.engine.job_nearly())
 
-    def reprint_job(self,map):
-      """
-      Actualiza la vista del ultimo recogido pedido en el mapa
-      """
-      job = self.engine.last_job_picked()
-      dropoff = job.dropoff
-      
-      if dropoff != (0,0):
-          c1,c2 = dropoff
-          map.tiles[c1][c2] = 'D'
-
-          return dropoff
-
     
     def _draw_inventory(self):
        if not getattr(self, "show_inventory", False):
@@ -354,13 +361,15 @@ class View_game:
 
        # rectángulo principal del popup
        w, h = self.screen.get_size()
-       inv_rect = pygame.Rect(w//2 - 150, h//2 - 130, 300, 260)
+       inv_rect = pygame.Rect(w//2 - 175, h//2 - 130, 400, 300)
        pygame.draw.rect(self.screen, (50, 50, 50), inv_rect, border_radius=10)
        pygame.draw.rect(self.screen, (200, 200, 200), inv_rect, 2, border_radius=10)
 
        # título
        title = self.font.render("Inventario", True, (255, 255, 255))
        self.screen.blit(title, (inv_rect.x + 10, inv_rect.y + 10))
+       capacity = self.font.render( f"Capacidad: {self.engine.courier.inventory.max_weight} kg." , True, (255, 255, 255))
+       self.screen.blit(capacity, (inv_rect.x + 210, inv_rect.y + 10))
 
        # botones para elegir orden
        self.priority_button = pygame.Rect(inv_rect.x + 10, inv_rect.y + 40, 120, 30)
@@ -380,6 +389,7 @@ class View_game:
            for i, item in enumerate(items[:5]):  # muestra hasta 5
                txt = self.font.render(
                    f"{i+1}. {item.pickup}->{item.dropoff} "
+                   f"Peso: {item.weight} kg. "
                    f"${item.payout}", True, (200, 200, 50)
                )
                self.screen.blit(txt, (inv_rect.x + 10, inv_rect.y + 80 + i*30))

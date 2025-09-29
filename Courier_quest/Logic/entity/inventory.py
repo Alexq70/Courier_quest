@@ -26,13 +26,13 @@ class Inventory:
             return True
         return False
 
-    def remove_job(self, job_id: str) -> bool:
+    def remove_job(self, job: Job) -> bool:
         """
         Elimina el pedido con id == job_id.
         Devuelve True si se borró, False si no existía.
         """
         for job in self.items:
-            if job.id == job_id:
+            if job.id == job.id:
                 self.items.remove(job)
                 return True
         return False

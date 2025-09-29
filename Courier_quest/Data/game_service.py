@@ -25,10 +25,15 @@ class GameService:
       min_dist = float("inf")
 
       for job in self.jobs:
-          d = self.distance(job.pickup, curr_position)
-          if d <= 5 and d < min_dist:  # 🔥 dentro del rango y más cercano
-             nearest = job
-             min_dist = d
+          # si el objeto ya esta en el inventario, calcula la distancia al dropoff
+          if job in self.courier.inventory.items:
+              d = self.distance(job.dropoff, curr_position)
+          else:
+              d = self.distance(job.pickup, curr_position)
+
+          if d <= 5 and d < min_dist:
+              nearest = job
+              min_dist = d
 
       return nearest
 
@@ -57,4 +62,11 @@ class GameService:
         """Ordena la lista de trabajos por fecha límite (más cercana primero)."""
         self.courier.inventory.items.sort(key=lambda job: job.deadline)
 
-    
+    def get_job(self, job : Job):
+        """
+        Busca y devuelve un trabajo 
+        """
+        for curr in self.jobs:
+            if curr.id == job.id:
+                return curr
+        return None
