@@ -33,8 +33,6 @@ class GameService:
       return nearest
 
     def distance(self,a, b):
-      """Distancia euclidiana entre dos puntos (x1, y1) y (x2, y2).
-      """
       return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
 
 
