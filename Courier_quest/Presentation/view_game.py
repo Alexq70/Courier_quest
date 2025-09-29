@@ -179,7 +179,7 @@ class View_game:
         for x in range(cmap.width):
             key = cmap.tiles[y][x]
             
-            if key in ['C', 'P','D']:
+            if key in ['C', 'P']:
                 img = self.tile_images.get(key)
                 if img:
                     self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
