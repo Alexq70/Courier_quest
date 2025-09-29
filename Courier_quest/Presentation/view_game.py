@@ -557,6 +557,7 @@ class View_game:
             c1, c2 = dropoff
             map.tiles[c1][c2] = 'D'
             return dropoff            return dropoff
+            return dropoff
     def reprint_job(self,map):
       """
       Actualiza la vista del ultimo recogido pedido en el mapa
