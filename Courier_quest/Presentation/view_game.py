@@ -3,8 +3,8 @@ from pathlib import Path
 from Logic.entity.job import Job
 
 import pygame
-
 from Presentation.controller_game import controller_game
+
 CELL_SIZE = 20
 HUD_HEIGHT = 80
 FPS = 60
@@ -29,8 +29,7 @@ class View_game:
         self.move_delay = 0.15 
         self.current_direction = 1  
 
-        #Ruta de las imagenes 
-
+        # Ruta de las imágenes 
         assets_dir = Path(__file__).parent.parent.parent / "src" / "assets"
         tiles_dir = assets_dir / "tiles"
         
@@ -40,11 +39,13 @@ class View_game:
         font_file = assets_dir / "font.ttf"
         if font_file.exists():
             self.font = pygame.font.Font(str(font_file), 18)
+            self.small_font = pygame.font.Font(str(font_file), 14)  # Fuente más pequeña para clima
         else:
             print(f"WARN: no hallé {font_file}, usando SysFont")
             self.font = pygame.font.SysFont(None, 18)
+            self.small_font = pygame.font.SysFont(None, 14)
 
-#diccionario para cargar las imagenes
+        # Diccionario para cargar las imágenes
         self.tile_images = {}
         mapping = {"C": "road.png", "P": "park.png", "W":"window.PNG","G":"ground.PNG","PE":"window_job.png", "D":"drop_off.png","W_NPC":"window_npc.png","G_NPC":"ground_npc.png"}
         for key, fname in mapping.items():
@@ -59,10 +60,42 @@ class View_game:
         loaded = sorted(self.tile_images.keys())
         print(f"TILE_IMAGES cargadas: {loaded}")
 
+        # Iconos de clima (puedes agregar imágenes específicas para cada condición)
+        self.weather_icons = {}
+        self._load_weather_icons(tiles_dir)
+
         self.running = True
         self.elapsed_time = 0.0
         self.goal = self.engine.city_map.goal
         self.earned = 0.0
+
+        # Estado del clima para la vista
+        self.current_weather_display = ""
+        self.weather_transition_progress = 0.0
+
+    def _load_weather_icons(self, tiles_dir):
+        """Cargar iconos para las condiciones climáticas"""
+        weather_icon_mapping = {
+            "clear": "clear.png",
+            "clouds": "clouds.png", 
+            "rain": "rain.png",
+            "rain_light": "ligth_rain.png",
+            "storm": "storm.png",
+            "fog": "fog.png",
+            "wind": "wind.png",
+            "heat": "heat.png",
+            "cold": "cold.png"
+        }
+        
+        for condition, filename in weather_icon_mapping.items():
+            icon_path = tiles_dir / filename
+            if icon_path.exists():
+                img = pygame.image.load(str(icon_path)).convert_alpha()
+                img = pygame.transform.scale(img, (30, 30))  # Tamaño fijo para iconos
+                self.weather_icons[condition] = img
+            else:
+                # Si no hay imagen, usar un placeholder con texto
+                print(f"WARN: No se encontró icono de clima: {filename}")
 
     def _load_courier_images(self, tiles_dir):
         """Cargar todas las imágenes del courier una sola vez."""
@@ -99,6 +132,10 @@ class View_game:
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0
             self.elapsed_time += dt
+            
+            # Actualizar el motor del juego (incluye clima)
+            self.engine.update()
+            
             self._handle_events()
             self._update(dt)
             self._draw()
@@ -126,9 +163,8 @@ class View_game:
 
  
 
-#lo arregle para simular el MVC
-    def _move_courier(self,dx,dy):
-        self.engine.move_courier(dx,dy)
+    def _move_courier(self, dx, dy):
+        self.engine.move_courier(dx, dy)
 
     def _update(self, dt: float):
         self.move_timer += dt
@@ -151,10 +187,10 @@ class View_game:
             elif keys[pygame.K_d]:
                 dx = 1
                 self.current_direction = 5 
-            if keys[pygame.K_LEFT ]:
+            if keys[pygame.K_LEFT]:
                 dx = -1
                 self.current_direction = 0  
-            elif keys[pygame.K_RIGHT ]:
+            elif keys[pygame.K_RIGHT]:
                 dx = 1
                 self.current_direction = 1 
             
@@ -169,105 +205,265 @@ class View_game:
         self._draw_jobs()
         self._draw_courier()
         self._draw_hud()
+        self._draw_weather_info()  
+
+    def _draw_weather_info(self):
+      weather_info = self.engine.get_current_weather_info()
+    
+      if not weather_info:
+        return
+        
+      condition = weather_info["condition"]
+      intensity = weather_info["intensity"]
+      multiplier = weather_info["speed_multiplier"]
+      time_remaining = weather_info["time_remaining"]
+      is_transitioning = weather_info["is_transitioning"]
+      transition_progress = weather_info["transition_progress"]
+
+      self.move_delay=multiplier*0.1
+    
+      weather_x = self.screen.get_width() - 200
+      weather_y = 10
+    
+      weather_bg = pygame.Surface((190, 60), pygame.SRCALPHA)
+      weather_bg.fill((0, 0, 0, 128))
+      self.screen.blit(weather_bg, (weather_x - 5, weather_y - 5))
+    
+      if condition in self.weather_icons:
+        self.screen.blit(self.weather_icons[condition], (weather_x, weather_y))
+        text_x = weather_x + 40
+      else:
+        text_x = weather_x
+    
+      condition_text = self.small_font.render(f"{condition}", True, (255, 255, 255))
+      self.screen.blit(condition_text, (text_x, weather_y))
+    
+      multiplier_text = self.small_font.render(f"Velocidad: ×{multiplier:.2f}", True, (255, 255, 255))
+      self.screen.blit(multiplier_text, (text_x, weather_y + 20))
+    
+      if is_transitioning:
+        progress_text = self.small_font.render(f"Transición: {transition_progress*100:.0f}%", True, (255, 255, 150))
+        self.screen.blit(progress_text, (text_x, weather_y + 40))
+      else:
+        time_text = self.small_font.render(f"Cambia en: {time_remaining:.0f}s", True, (255, 255, 255))
+        self.screen.blit(time_text, (text_x, weather_y + 40))
+    
+      self._draw_weather_effects(condition, intensity)
+
+    def _draw_weather_effects(self, condition, intensity):
+     if condition == "clear":
+        self._draw_sun_effect(intensity)
+     elif condition == "clouds":
+        self._draw_clouds_effect(intensity)
+     elif condition == "rain_light":
+        self._draw_rain_light_effect(intensity)
+     elif condition == "rain":
+        self._draw_rain_effect(intensity)
+     elif condition == "storm":
+        self._draw_storm_effect(intensity)
+     elif condition == "fog":
+        self._draw_fog_effect(intensity)
+     elif condition == "wind":
+        self._draw_wind_effect(intensity)
+     elif condition == "heat":
+        self._draw_heat_effect(intensity)
+     elif condition == "cold":
+        self._draw_cold_effect(intensity)
+
+# MÉTODOS CON COLORES MUY CONTRASTANTES:
+
+    def _draw_sun_effect(self, intensity):
+    # Brillo constante del sol
+     sun_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+     sun_color = (255, 255, 0, int(40 * intensity))  # AMARILLO BRILLANTE
+     sun_surface.fill(sun_color)
+     self.screen.blit(sun_surface, (0, 0))
+    
+    # Rayos de sol ocasionales
+     if pygame.time.get_ticks() % 2000 < 200:
+        ray_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        ray_color = (255, 255, 100, int(80 * intensity))
+        ray_surface.fill(ray_color)
+        self.screen.blit(ray_surface, (0, 0))
+
+    def _draw_clouds_effect(self, intensity):
+     cloud_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+     cloud_color = (50, 50, 50, int(80 * intensity))  # GRIS MUY OSCURO
+     cloud_surface.fill(cloud_color)
+     self.screen.blit(cloud_surface, (0, 0))
+
+    def _draw_rain_light_effect(self, intensity):
+     for i in range(int(10 * intensity)):
+        x = (pygame.time.get_ticks() // 12 + i * 55) % self.screen.get_width()
+        y = (pygame.time.get_ticks() // 6 + i * 35) % self.screen.get_height()
+        # AZUL ELECTRICO muy visible
+        pygame.draw.line(self.screen, (0, 100, 255), (x, y), (x, y + 8), 2)
+
+    def _draw_rain_effect(self, intensity):
+     for i in range(int(15 * intensity)):
+        x = (pygame.time.get_ticks() // 8 + i * 45) % self.screen.get_width()
+        y = (pygame.time.get_ticks() // 4 + i * 25) % self.screen.get_height()
+        # AZUL MARINO muy oscuro
+        pygame.draw.line(self.screen, (0, 0, 180), (x, y), (x, y + 12), 2)
+
+    def _draw_storm_effect(self, intensity):
+    # Lluvia muy intensa
+     for i in range(int(20 * intensity)):
+        x = (pygame.time.get_ticks() // 6 + i * 35) % self.screen.get_width()
+        y = (pygame.time.get_ticks() // 3 + i * 20) % self.screen.get_height()
+        pygame.draw.line(self.screen, (0, 0, 120), (x, y), (x, y + 15), 3)
+    
+    # Fondo oscuro para tormenta
+     storm_bg = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+     storm_bg.fill((0, 0, 50, int(60 * intensity)))  # AZUL MUY OSCURO
+     self.screen.blit(storm_bg, (0, 0))
+    
+    # Relámpagos BLANCOS MUY BRILLANTES
+     if pygame.time.get_ticks() % 1500 < 100:
+        flash_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        flash_surface.fill((255, 255, 255, int(150 * intensity)))  # BLANCO PURO
+        self.screen.blit(flash_surface, (0, 0))
+
+    def _draw_fog_effect(self, intensity):
+     fog_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+     fog_color = (255, 255, 255, int(120 * intensity))  # BLANCO PURO
+     fog_surface.fill(fog_color)
+     self.screen.blit(fog_surface, (0, 0))
+
+    def _draw_wind_effect(self, intensity):
+     for i in range(int(12 * intensity)):
+        x = (pygame.time.get_ticks() // 4 + i * 50) % self.screen.get_width()
+        y = (pygame.time.get_ticks() // 12 + i * 15) % self.screen.get_height()
+        # VERDE NEÓN muy visible
+        offset = int(8 * intensity)
+        pygame.draw.line(self.screen, (0, 255, 0), 
+                        (x, y), (x - offset, y + 3), 2)
+
+    def _draw_heat_effect(self, intensity):
+    # Brillo rojo-anaranjado constante
+     heat_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+     heat_color = (255, 50, 0, int(60 * intensity))  # ROJO ANARANJADO FUERTE
+     heat_surface.fill(heat_color)
+     self.screen.blit(heat_surface, (0, 0))
+    
+    # Ondas de calor (efecto de distorsión visual)
+     if pygame.time.get_ticks() % 1800 < 150:
+        wave_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+        wave_color = (255, 100, 0, int(80 * intensity))
+        wave_surface.fill(wave_color)
+        self.screen.blit(wave_surface, (0, 0))
+
+    def _draw_cold_effect(self, intensity):
+    # Brillo azul constante
+     cold_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
+     cold_color = (100, 200, 255, int(50 * intensity))  # AZUL CIELO BRILLANTE
+     cold_surface.fill(cold_color)
+     self.screen.blit(cold_surface, (0, 0))
+    
+    # Copos de nieve/hielo
+     for i in range(int(10 * intensity)):
+        x = (pygame.time.get_ticks() // 10 + i * 60) % self.screen.get_width()
+        y = (pygame.time.get_ticks() // 5 + i * 40) % self.screen.get_height()
+        # Copos AZUL BLANQUECINO
+        pygame.draw.line(self.screen, (200, 230, 255), 
+                        (x, y), (x + 3, y + 6), 2)
         self._draw_inventory()
 
     def _draw_map(self):
       cmap = self.engine.city_map
 
-      for y in range(cmap.height):
-        for x in range(cmap.width):
-            key = cmap.tiles[y][x]
-            
-            if key in ['C', 'P']: 
-                img = self.tile_images.get(key)
-                if img:
-                    self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
-                else:
-                    name = cmap.legend[key].get("name", "")
-                    if name == "calle":
-                        color = (190, 190, 190)
-                    elif name == "parque":
-                        color = (144, 238, 144)
+        for y in range(cmap.height):
+            for x in range(cmap.width):
+                key = cmap.tiles[y][x]
+                
+                if key in ['C', 'P']: 
+                    img = self.tile_images.get(key)
+                    if img:
+                        self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
                     else:
-                        color = (150, 150, 150)
+                        name = cmap.legend[key].get("name", "")
+                        if name == "calle":
+                            color = (190, 190, 190)
+                        elif name == "parque":
+                            color = (144, 238, 144)
+                        else:
+                            color = (150, 150, 150)
 
-                    rect = pygame.Rect(
-                        x * CELL_SIZE,
-                        y * CELL_SIZE,
-                        CELL_SIZE,
-                        CELL_SIZE
-                    )
-                    pygame.draw.rect(self.screen, color, rect)
+                        rect = pygame.Rect(
+                            x * CELL_SIZE,
+                            y * CELL_SIZE,
+                            CELL_SIZE,
+                            CELL_SIZE
+                        )
+                        pygame.draw.rect(self.screen, color, rect)
+                
+                pygame.draw.rect(
+                    self.screen,
+                    (50, 50, 50),
+                    (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE),
+                    1
+                )
+        
+        bloques_edificios = cmap.detectar_bloques()
+        building_img = self.tile_images.get('B')
+        window_img = self.tile_images.get('W') 
+        ground_img = self.tile_images.get('G')  
+        npc_image = self.tile_images.get('D')
+        
+        for bloque in bloques_edificios:
+            x = bloque['x']
+            y = bloque['y']
+            w = bloque['width']
+            h = bloque['height']
+            
+            building_rect = pygame.Rect(
+                x * CELL_SIZE,
+                y * CELL_SIZE,
+                w * CELL_SIZE,
+                h * CELL_SIZE
+            )
+            
+            if building_img or window_img or ground_img or npc_image:
+                edificio_completo = pygame.Surface((w * CELL_SIZE, h * CELL_SIZE), pygame.SRCALPHA)
+                
+                for i in range(w):  
+                    for j in range(h):  
+                        pos_x = i * CELL_SIZE
+                        pos_y = j * CELL_SIZE                  
+                        celda_x = x + i
+                        celda_y = y + j
+                        tipo_celda = cmap.tiles[celda_y][celda_x]
+                        
+                        if tipo_celda == 'D' and npc_image:
+                            if h==1 and  w==1:
+                                edificio_completo.blit(npc_image, (pos_x, pos_y))
+                            elif j == h - 1:  
+                                if self.tile_images.get('G_NPC'):  
+                                    edificio_completo.blit(self.tile_images['G_NPC'], (pos_x, pos_y))
+                            else:  
+                                if self.tile_images.get('W_NPC'):  
+                                    edificio_completo.blit(self.tile_images['W_NPC'], (pos_x, pos_y))
+                        else:
+                            if j == h - 1:
+                                if ground_img:
+                                    edificio_completo.blit(ground_img, (pos_x, pos_y))
+                            else:  
+                                if window_img:
+                                    edificio_completo.blit(window_img, (pos_x, pos_y))
+                                
+                
+                self.screen.blit(edificio_completo, building_rect)
+            else:
+                pygame.draw.rect(self.screen, (100, 100, 100), building_rect)
             
             pygame.draw.rect(
                 self.screen,
-                (50, 50, 50),
-                (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE),
-                1
+                (30, 30, 30),
+                building_rect,
+                1  
             )
-    
-      bloques_edificios = cmap.detectar_bloques()
-      building_img = self.tile_images.get('B')
-      window_img = self.tile_images.get('W') 
-      ground_img = self.tile_images.get('G')  
-      npc_image = self.tile_images.get('D')
-    
-      for bloque in bloques_edificios:
-        x = bloque['x']
-        y = bloque['y']
-        w = bloque['width']
-        h = bloque['height']
-        
-        building_rect = pygame.Rect(
-            x * CELL_SIZE,
-            y * CELL_SIZE,
-            w * CELL_SIZE,
-            h * CELL_SIZE
-        )
-        
-        if building_img or window_img or ground_img or npc_image:
-            edificio_completo = pygame.Surface((w * CELL_SIZE, h * CELL_SIZE), pygame.SRCALPHA)
-            
-            for i in range(w):  
-                for j in range(h):  
-                    pos_x = i * CELL_SIZE
-                    pos_y = j * CELL_SIZE                  
-                    celda_x = x + i
-                    celda_y = y + j
-                    tipo_celda = cmap.tiles[celda_y][celda_x]
-                    
-                    if tipo_celda == 'D' and npc_image:
-                        if h==1 and  w==1:
-                             edificio_completo.blit(npc_image, (pos_x, pos_y))
-                        elif j == h - 1:  
-                            if self.tile_images.get('G_NPC'):  
-                                edificio_completo.blit(self.tile_images['G_NPC'], (pos_x, pos_y))
-                        else:  
-                            if self.tile_images.get('W_NPC'):  
-                                edificio_completo.blit(self.tile_images['W_NPC'], (pos_x, pos_y))
-                    else:
-                        if j == h - 1:
-                            if ground_img:
-                                edificio_completo.blit(ground_img, (pos_x, pos_y))
-                        else:  
-                            if window_img:
-                                edificio_completo.blit(window_img, (pos_x, pos_y))
-                            
-            
-            self.screen.blit(edificio_completo, building_rect)
-        else:
-            pygame.draw.rect(self.screen, (100, 100, 100), building_rect)
-        
-        pygame.draw.rect(
-            self.screen,
-            (30, 30, 30),
-            building_rect,
-            1  
-        )
 
     def _draw_jobs(self):
-        #dibuja la imagen del regalo sobre la ventana nada mas si se va a hacer aleatorio ,
-        #hacer logica de que se vea donde se va a dibujar el regalo y use la imagen correcta
         for job in self.engine.jobs:
             x, y = job.pickup
             img = self.tile_images.get("PE")
@@ -323,35 +519,35 @@ class View_game:
         pygame.draw.circle(self.screen, (255, 0, 0), center, CELL_SIZE // 3)
 
     def _draw_hud(self):
+        w, h = self.screen.get_size()
+        hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
+        pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
       # Barra inferior
-      w, h = self.screen.get_size()
-      hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
-      pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
+        w, h = self.screen.get_size()
+        hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
+        pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
 
       # Tiempo
-      time_surf = self.font.render(
+        time_surf = self.font.render(
           f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
-      )
-      self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
+        )
+        self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
 
       # Ingresos
-      earn_surf = self.font.render(
+        earn_surf = self.font.render(
           f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
       )
-      self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
+        self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 
       # Botón Inventario
-      self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
-      pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
+        self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
+        pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
 
-      btn_text = self.font.render("Inventario", True, (255, 255, 255))
-      self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
+        btn_text = self.font.render("Inventario", True, (255, 255, 255))
+        self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
   
 
     def _pickup_job(self):
-        """
-        verifica si el jugador esta recogiendo un pedido, y si si lo recoge y actualiza todo
-        """
         self._update_job(self.engine.job_nearly())
 
     

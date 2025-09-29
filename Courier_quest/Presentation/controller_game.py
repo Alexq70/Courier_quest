@@ -4,11 +4,12 @@ from Logic.entity.city_map import CityMap
 from Logic.entity.job import Job
 from Logic.entity.weather_burst import WeatherBurst
 from Logic.entity.courier import Courier
-
+from Logic.weather_simulator import WeatherSimulator  
+import time
 
 class controller_game:
     """
-    Motor del juego: carga mapa, pedidos, clima (stub) e inicializa Courier.
+    Motor del juego: carga mapa, pedidos, clima dinámico e inicializa Courier.
     """
 
     def __init__(self):
@@ -18,7 +19,10 @@ class controller_game:
         self.jobs = []
         self.weather = []
         self.courier = None
-
+        self.weather_simulator = None  # Nuevo atributo
+        self.last_weather_update = 0
+        self.weather_update_interval = 0.1  # Actualizar clima cada 100ms
+        
     def _deep_unwrap(self, resp: dict) -> dict:
         """
         Retorna la informacion mas profunda del diccionario
@@ -89,26 +93,43 @@ class controller_game:
         print(f"Pedidos cargados: {len(raw_jobs)}")
         self.jobs = [Job(**d) for d in raw_jobs]
 
-        # 3) Clima (stub)
-        print("Cargando clima (stub)…")
+        # 3) Clima DINÁMICO - CORREGIDO
+        print("Inicializando simulador de clima dinámico...")
         weather_resp = self.api.fetch("city/weather")
-        raw = weather_resp.get("data", {}) if isinstance(weather_resp, dict) else {}
-        bursts = raw.get("bursts", [])
-        if not isinstance(bursts, list):
-            bursts = []
-        print(f"Ráfagas climáticas (stub): {len(bursts)}")
-        self.weather = [WeatherBurst(**w) for w in bursts]
+        raw_weather = self._deep_unwrap(weather_resp)
+        
+        # Crear el simulador de clima (nombre corregido)
+        self.weather_simulator = WeatherSimulator(raw_weather)
+        self.last_weather_update = time.time()
+        
+        # Generar bursts iniciales para compatibilidad
+        self.weather = self._generate_initial_bursts()
+        print(f"Clima dinámico inicializado: {self.weather_simulator.current_condition}")
 
         # 4) Courier
         self.courier = Courier(start_pos=(0, 0), max_weight=8)
         print(f"Courier inicializado en {self.courier.position}")
+
+    def _generate_initial_bursts(self):
+        """Genera bursts iniciales para compatibilidad con código existente"""
+        bursts = []
+        # Crear algunos bursts iniciales basados en el clima actual
+        for i in range(5):
+            burst_data = {
+                "hour": i,
+                "condition": self.weather_simulator.current_condition,
+                "intensity": self.weather_simulator.current_intensity,
+                "city": self.weather_simulator.config["city"]
+            }
+            bursts.append(WeatherBurst(**burst_data))
+        return bursts
 
     def start(self):
         """
         Arranca la carga del mundo y ejecuta el juego.
         """
         self.load_world()
-        self.game_service = GameService(self.jobs,self.weather,self.city_map,self.courier)
+        self.game_service = GameService(self.jobs, self.weather, self.city_map, self.courier)
         print("Juego iniciado correctamente.")
 
     def move_courier(self,dx,dy):
@@ -116,3 +137,35 @@ class controller_game:
 
     def get_job(self, job):
         return self.game_service.get_job(job)
+    def update(self):
+        """
+        Método principal de actualización del juego (llamar en cada frame)
+        """
+        current_time = time.time()
+        
+        # Actualizar clima si es tiempo
+        if current_time - self.last_weather_update >= self.weather_update_interval:
+            self._update_weather()
+            self.last_weather_update = current_time
+
+    def _update_weather(self):
+        """Actualiza el estado del clima"""
+        if not self.weather_simulator:
+            return
+        
+        condition, intensity, multiplier, changed = self.weather_simulator.update()
+        
+        # Notificar si cambió el clima
+        if changed and self.game_service:
+            # Puedes agregar lógica aquí para notificar al GameService
+            print(f"Clima cambiado a: {condition} (multiplicador: {multiplier:.2f})")
+
+    def get_current_weather_info(self):
+        """Obtiene información del clima actual para la vista"""
+        if self.weather_simulator:
+            return self.weather_simulator.get_weather_info()
+        return {}
+
+    def move_courier(self, dx, dy):
+        """Mueve al courier (sin modificar el courier por ahora)"""
+        self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy)
