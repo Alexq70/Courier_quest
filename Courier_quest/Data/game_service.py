@@ -12,61 +12,48 @@ class GameService:
            self.weather = weather
            self.map = map
            self.courier = courier
-           self.last_picked = self.job_example
+           self.last_job = self.job_example
 
     def job_most_nearly(self, curr_position):
-      """
-      Busca el job más cercano a la posición del jugador.
-      """
-      if not self.jobs:
-        return None  # Si la lista está vacía
+       """
+       Busca el job más cercano a la posición del jugador.
+       - Si está en el mapa: compara distancia al pickup.
+       - Si está en el inventario: compara distancia al dropoff.
+        """
+       # juntar jobs en el mapa + en el inventario
+       candidates = list(self.jobs) + list(self.courier.inventory.items)
+       if not candidates:
+           return None
 
-      nearest: Job = None
-      min_dist = float("inf")
+       nearest: Job = None
+       min_dist = float("inf")
 
-      for job in self.jobs:
-          # si el objeto ya esta en el inventario, calcula la distancia al dropoff
-          if job in self.courier.inventory.items:
-              d = self.distance(job.dropoff, curr_position)
-          else:
-              d = self.distance(job.pickup, curr_position)
+       for job in candidates:
+           if job in self.courier.inventory.items:
+               d = self.distance(job.dropoff, curr_position)
+           else:
+               d = self.distance(job.pickup, curr_position)
 
-          if d <= 5 and d < min_dist:
-              nearest = job
-              min_dist = d
+           if d <= 5 and d < min_dist:
+               nearest = job
+               min_dist = d
 
-      return nearest
+       return nearest
 
     def distance(self,a, b):
       return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
 
 
     
-    def get_last_picked(self):
+    def get_last_job(self):
         """"
-        Devuelve el último trabajo recogido.
+        Devuelve el último trabajo recogido o tomado del mapa.
         """
-        return self.last_picked
+        return self.last_job
     
-    def set_last_picked(self,job):
+    def set_last_job(self,job):
         """
-        Establece el último trabajo recogido.
+        Establece el último trabajo recogido o tomado del mapa.
         """
-        self.last_picked = job
-
-    def sort_jobs_by_priority(self):
-        """Ordena la lista de trabajos por prioridad (mayor prioridad primero)."""
-        self.courier.inventory.items.sort(key=lambda job: job.priority, reverse=True)
-
-    def sort_jobs_by_deadline(self):
-        """Ordena la lista de trabajos por fecha límite (más cercana primero)."""
-        self.courier.inventory.items.sort(key=lambda job: job.deadline)
-
-    def get_job(self, job : Job):
-        """
-        Busca y devuelve un trabajo 
-        """
-        for curr in self.jobs:
-            if curr.id == job.id:
-                return curr
-        return None
+        self.last_job = job
+    

@@ -155,9 +155,10 @@ class View_game:
                 # Si inventario está abierto, revisar botones de orden
                 if getattr(self, "show_inventory", False):
                     if hasattr(self, "priority_button") and self.priority_button.collidepoint(event.pos):
-                        self.engine.sort_by_priority()
+                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
                     elif hasattr(self, "deadline_button") and self.deadline_button.collidepoint(event.pos):
-                        self.engine.sort_by_deadline()
+                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
+
 
 
     def _move_courier(self, dx, dy):
@@ -461,14 +462,21 @@ class View_game:
             )
 
     def _draw_jobs(self):
+        curr_job  = self.engine.get_last_job()
+        if curr_job is not None:
+            if curr_job.dropoff != (0,0):
+               x1,y1 = curr_job.dropoff
+               self.engine.city_map.tiles[y1][x1] = "B"
+       # se puede hace rque se imprima solo la promera vez
         for job in self.engine.jobs:
             x, y = job.pickup
             img = self.tile_images.get("PE")
             self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
         for job in self.engine.courier.inventory.items:
-            x, y = job.dropoff
-            if (x, y) != (0, 0):  
-               self.engine.city_map.tiles[y][x]="D"                
+              x, y = job.dropoff 
+              self.engine.city_map.tiles[y][x]="D"
+            
+
 
     def _update_job(self, job: Job):
         """
@@ -484,19 +492,18 @@ class View_game:
             if job not in self.engine.courier.inventory.items:  # aún no tomado
                 if self.engine.courier.pick_job(job):
                     self.engine.jobs.remove(job)  # lo sacamos de la lista global
-                    self.engine.set_last_picked(job)
+                   
 
         # Cancelar job (solo pickups)
         if keys[pygame.K_q] and job is not None:
             if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
                 self.engine.jobs.remove(job)
 
-        # Entregar job
-        if keys[pygame.K_r] and job is not None:
-            if job in self.engine.courier.inventory.items:  # está en inventario
-                if job == self.engine.last_job_dropped():   # estás en su dropoff
-                    self.earned += job.payout
-                    self.engine.courier.inventory.remove_job(job)
+        if keys[pygame.K_r]:
+           self.engine.set_last_job(job)
+           self.earned += job.payout
+           self.engine.courier.deliver_job(job)
+
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
@@ -565,10 +572,10 @@ class View_game:
 
        # botones para elegir orden
        self.priority_button = pygame.Rect(inv_rect.x + 10, inv_rect.y + 40, 120, 30)
-       self.deadline_button = pygame.Rect(inv_rect.x + 150, inv_rect.y + 40, 120, 30)
+       self.deadline_button = pygame.Rect(inv_rect.x + 220, inv_rect.y + 40, 120, 30)
 
-       pygame.draw.rect(self.screen, (100, 100, 200), self.priority_button, border_radius=5)
-       pygame.draw.rect(self.screen, (200, 100, 100), self.deadline_button, border_radius=5)
+       pygame.draw.rect(self.screen, (25, 25, 25), self.priority_button, border_radius=5)
+       pygame.draw.rect(self.screen, (25, 25, 25), self.deadline_button, border_radius=5)
 
        txt_p = self.font.render("Prioridad", True, (255, 255, 255))
        txt_d = self.font.render("Entrega", True, (255, 255, 255))
@@ -576,13 +583,15 @@ class View_game:
        self.screen.blit(txt_d, (self.deadline_button.x + 10, self.deadline_button.y + 5))
 
        # mostrar items ya ordenados por el engine
-       items = self.engine.courier.inventory.items
+       items = getattr(self, "ordered_jobs", self.engine.courier.inventory.items)
        if items:
            for i, item in enumerate(items[:5]):  # muestra hasta 5
-               txt = self.font.render(
-                   f"{i+1}. {item.pickup}->{item.dropoff} "
-                   f"Peso: {item.weight} kg. "
-                   f"${item.payout}", True, (200, 200, 50)
+               txt = self.small_font.render(
+                   f"{item.id}:  "
+                   f"Prioridad: {item.priority}  "
+                  # f" Entrega:{item.deadline}"
+                   f"Peso: {item.weight} kg.  "
+                   f"${item.payout}", True, (200, 200, 200)
                )
                self.screen.blit(txt, (inv_rect.x + 10, inv_rect.y + 80 + i*30))
        else:

@@ -57,17 +57,11 @@ class controller_game:
     def job_nearly(self):
         return self.game_service.job_most_nearly(self.courier.position)
     
-    def set_last_picked(self,job):
-        return self.game_service.set_last_picked(job)
-    
-    def get_last_picked(self):
-        return self.game_service.get_last_picked()
-    
-    def set_last_dropped(self,job):
-        self.game_service.set_last_dropped(job)
-
-    def last_job_dropped(self):
-        return self.game_service.get_last_dropped()
+    def set_last_job(self, job):
+        self.game_service.set_last_job(job)
+        
+    def get_last_job(self):
+        return self.game_service.get_last_job()
 
     def load_world(self):
         # 1) Mapa
@@ -135,8 +129,6 @@ class controller_game:
     def move_courier(self,dx,dy):
         self.courier.move_courier(self.city_map.width,self.city_map.height,self.city_map,dx,dy)
 
-    def get_job(self, job):
-        return self.game_service.get_job(job)
     def update(self):
         """
         Método principal de actualización del juego (llamar en cada frame)

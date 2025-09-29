@@ -65,3 +65,5 @@ class Courier:
         Se puede conectar aquí lógica de stamina, clima, etc.
         """
         self.position = position
+
+   
