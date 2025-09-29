@@ -26,7 +26,10 @@ class CityMap:
         Devuelve True si la posición (x, y) está bloqueada.
         """
         key = self.tiles[y][x]
-        return self.legend[key].get("blocked", False)
+        if(key == 'D'):
+            return "blocked",False
+        else:
+          return self.legend[key].get("blocked", False)
 
     def get_surface_weight(self, x: int, y: int) -> float:
         """

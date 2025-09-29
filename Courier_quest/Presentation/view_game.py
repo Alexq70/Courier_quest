@@ -132,13 +132,11 @@ class View_game:
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0
             self.elapsed_time += dt
-            
-            # Actualizar el motor del juego (incluye clima)
             self.engine.update()
-            
             self._handle_events()
             self._update(dt)
             self._draw()
+            self._draw_inventory()
             pygame.display.flip()
 
         pygame.quit()
@@ -470,8 +468,7 @@ class View_game:
         for job in self.engine.courier.inventory.items:
             x, y = job.dropoff
             if (x, y) != (0, 0):  
-                img = self.tile_images.get("D")
-                self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+               self.engine.city_map.tiles[y][x]="D"                
 
     def _update_job(self, job: Job):
         """
