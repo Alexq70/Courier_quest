@@ -74,15 +74,15 @@ class View_game:
     def _load_weather_icons(self, tiles_dir):
         """Cargar iconos para las condiciones climáticas"""
         weather_icon_mapping = {
-            "clear": "weather_clear.png",
-            "clouds": "weather_clouds.png", 
-            "rain": "weather_rain.png",
-            "rain_light": "weather_rain_light.png",
-            "storm": "weather_storm.png",
-            "fog": "weather_fog.png",
-            "wind": "weather_wind.png",
-            "heat": "weather_heat.png",
-            "cold": "weather_cold.png"
+            "clear": "clear.png",
+            "clouds": "clouds.png", 
+            "rain": "rain.png",
+            "rain_light": "ligth_rain.png",
+            "storm": "storm.png",
+            "fog": "fog.png",
+            "wind": "wind.png",
+            "heat": "heat.png",
+            "cold": "cold.png"
         }
         
         for condition, filename in weather_icon_mapping.items():
@@ -203,7 +203,7 @@ class View_game:
         self._draw_jobs()
         self._draw_courier()
         self._draw_hud()
-        self._draw_weather_info()  # Nueva función para mostrar clima
+        self._draw_weather_info()  
 
     def _draw_weather_info(self):
       weather_info = self.engine.get_current_weather_info()
