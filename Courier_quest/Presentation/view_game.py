@@ -5,7 +5,7 @@ from Logic.entity.job import Job
 import pygame
 from Presentation.controller_game import controller_game
 
-CELL_SIZE = 20
+CELL_SIZE = 30
 HUD_HEIGHT = 80
 FPS = 60
 
@@ -494,9 +494,10 @@ class View_game:
                 self.engine.jobs.remove(job)
 
         if keys[pygame.K_r]:
-           self.engine.set_last_job(job)
-           self.earned += job.payout
-           self.engine.courier.deliver_job(job)
+           if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
+              self.engine.set_last_job(job)
+              self.earned += job.payout
+              self.engine.courier.deliver_job(job)
 
 
     def _draw_courier(self):
