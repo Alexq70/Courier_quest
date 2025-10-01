@@ -10,6 +10,7 @@ from Logic.entity import courier
 CELL_SIZE = 24
 HUD_HEIGHT = 80
 FPS = 60
+prev = ''
 
 class View_game:
     """Interfaz gráfica con Pygame para Courier Quest.""" 
@@ -17,6 +18,7 @@ class View_game:
     def __init__(self):
         """Inicializar Pygame, motor y cargar todos los assets."""
         pygame.init()
+        pygame.mixer.init
         self.engine = controller_game()
         self.engine.start()
 
@@ -37,6 +39,7 @@ class View_game:
         
         self.courier_images = {}
         self._load_courier_images(tiles_dir)
+        self._load_sounds(tiles_dir)
 
         font_file = assets_dir / "font.ttf"
         if font_file.exists():
@@ -71,9 +74,41 @@ class View_game:
         self.goal = self.engine.city_map.goal
         self.earned = 0.0
 
-        # Estado del clima para la vista
+        
         self.current_weather_display = ""
         self.weather_transition_progress = 0.0
+        pygame.mixer.music.play(-1)
+        pygame.mixer.music.set_volume(0.3)
+
+    def _load_sounds(self, tiles_dir):  
+      sounds_dict = {
+        "catch": "entrega.mp3",
+        "base": "base.mp3",  
+        "thunder": "thunder.mp3",
+        "acept":"acept.mp3",
+        "error":"error.mp3",
+        "remove":"remove.mp3"
+      }
+    
+      self.sounds = {}
+    
+      for key, filename in sounds_dict.items(): 
+        sound_path = tiles_dir / filename
+        if sound_path.exists():
+            try:
+                if key == "base":
+                   
+                    pygame.mixer.music.load(str(sound_path))
+                    print(f"Música de fondo cargada: {filename}")
+                else:
+                   
+                    self.sounds[key] = pygame.mixer.Sound(str(sound_path))
+                    print(f"Sonido cargado: {filename}")
+            except Exception as e:
+                print(f"Error cargando {filename}: {e}")
+        else:
+            print(f"Archivo no encontrado: {sound_path}")
+
 
     def _load_weather_icons(self, tiles_dir):
         """Cargar iconos para las condiciones climáticas"""
@@ -128,6 +163,10 @@ class View_game:
         except Exception as e:
             print(f"Error cargando imágenes del courier: {e}")
             self.courier_images = {}
+
+    def play_Sound(self,sound_name):
+        if sound_name in self.sounds:
+            self.sounds[sound_name].play()
 
     def run(self):
         """Bucle principal: eventos, actualización y dibujo."""
@@ -321,14 +360,16 @@ class View_game:
     
     # Fondo oscuro para tormenta
      storm_bg = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-     storm_bg.fill((0, 0, 50, int(60 * intensity)))  # AZUL MUY OSCURO
+     storm_bg.fill((0, 0, 50, int(60 * intensity)))
      self.screen.blit(storm_bg, (0, 0))
     
-    # Relámpagos BLANCOS MUY BRILLANTES
-     if pygame.time.get_ticks() % 1500 < 100:
+    # Relámpagos - SOLUCIÓN SIMPLE
+     current_time = pygame.time.get_ticks()
+     if current_time % 2000 < 20:  # Cambié a 20ms en vez de 100ms
         flash_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-        flash_surface.fill((255, 255, 255, int(150 * intensity)))  # BLANCO PURO
+        flash_surface.fill((255, 255, 255, int(150 * intensity)))
         self.screen.blit(flash_surface, (0, 0))
+        self.play_Sound("thunder")  # Asegúrate que sea play_sound
 
     def _draw_fog_effect(self, intensity):
      fog_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
@@ -377,7 +418,6 @@ class View_game:
 
     def _draw_map(self):
         cmap = self.engine.city_map
-
         for y in range(cmap.height):
             for x in range(cmap.width):
                 key = cmap.tiles[y][x]
@@ -437,6 +477,7 @@ class View_game:
                         if tipo_celda == 'D' and npc_image:
                             if h==1 and  w==1:
                                 edificio_completo.blit(npc_image, (pos_x, pos_y))
+
                             elif j == h - 1:  
                                 if self.tile_images.get('G_NPC'):  
                                     edificio_completo.blit(self.tile_images['G_NPC'], (pos_x, pos_y))
@@ -463,12 +504,12 @@ class View_game:
                 1  
             )
 
-    def _draw_jobs(self):
+    def _draw_jobs(self): 
         curr_job  = self.engine.get_last_job()
         if curr_job is not None:
             if curr_job.dropoff != (0,0):
                x1,y1 = curr_job.dropoff
-               self.engine.city_map.tiles[y1][x1] = "B"
+               self.engine.city_map.tiles[y1][x1] = self.prev
        # se puede hace rque se imprima solo la promera vez
         for job in self.engine.jobs:
             x, y = job.pickup
@@ -488,24 +529,34 @@ class View_game:
         - R: entregar job (solo si está en inventario y en dropoff).
         """
         keys = pygame.key.get_pressed()
-
         # Tomar job
         if keys[pygame.K_e] and job is not None:
             if job not in self.engine.courier.inventory.items:  # aún no tomado
                 if self.engine.courier.pick_job(job):
+                    x,y = job.dropoff 
+                    self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
                     self.engine.jobs.remove(job)  # lo sacamos de la lista global
+                    self.play_Sound("catch")
+                else:
+                   self.play_Sound("error")
+                    
                    
 
         # Cancelar job (solo pickups)
         if keys[pygame.K_q] and job is not None:
             if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
                 self.engine.jobs.remove(job)
+                self.play_Sound("remove")
 
         if keys[pygame.K_r]:
-           if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
-              self.engine.set_last_job(job)
-              self.earned += job.payout
-              self.engine.courier.deliver_job(job)
+            if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
+               self.engine.set_last_job(job)
+               self.earned += job.payout
+               self.play_Sound("acept")
+               self.engine.courier.deliver_job(job)
+            else:
+                if job in self.engine.game_service.courier.inventory.items and job is not None:
+                   self.play_Sound("error")
 
 
     def _draw_courier(self):

@@ -6,6 +6,7 @@ from Logic.entity.weather_burst import WeatherBurst
 from Logic.entity.courier import Courier
 from Logic.weather_simulator import WeatherSimulator  
 import time
+import random
 
 class controller_game:
     """
@@ -76,8 +77,8 @@ class controller_game:
             goal=raw_map["goal"],
         )
         print(f"Mapa cargado: {self.city_map.width}x{self.city_map.height}")
-
-        # 2) Pedidos
+        
+          # 2) Pedidos
         print("Cargando pedidos...")
         jobs_resp = self.api.fetch("city/jobs")
         raw_jobs = self._deep_unwrap(jobs_resp)
@@ -86,6 +87,7 @@ class controller_game:
             raise RuntimeError("city/jobs no contiene lista de pedidos")
         print(f"Pedidos cargados: {len(raw_jobs)}")
         self.jobs = [Job(**d) for d in raw_jobs]
+
 
         # 3) Clima DINÁMICO - CORREGIDO
         print("Inicializando simulador de clima dinámico...")
@@ -101,7 +103,7 @@ class controller_game:
         print(f"Clima dinámico inicializado: {self.weather_simulator.current_condition}")
 
         # 4) Courier
-        self.courier = Courier(start_pos=(0, 0), max_weight=8)
+        self.courier = Courier(start_pos=(0, 0), max_weight=10)
         print(f"Courier inicializado en {self.courier.position}")
 
     def _generate_initial_bursts(self):
@@ -128,13 +130,17 @@ class controller_game:
 
     def move_courier(self,dx,dy):
         self.courier.move_courier(self.city_map.width,self.city_map.height,self.city_map,dx,dy)
-
+    
     def update(self):
         """
         Método principal de actualización del juego (llamar en cada frame)
         """
         current_time = time.time()
         
+        if len(self.jobs) <=0: #actualizamos los pedidos cuando ya no hay
+           if len(self.courier.inventory.items) <=0:
+            self.refresh_jobs(self.new_jobs())
+            
         # Actualizar clima si es tiempo
         if current_time - self.last_weather_update >= self.weather_update_interval:
             self._update_weather()
@@ -145,12 +151,8 @@ class controller_game:
         if not self.weather_simulator:
             return
         
-        condition, intensity, multiplier, changed = self.weather_simulator.update()
+        self.weather_simulator.update()
         
-        # Notificar si cambió el clima
-        if changed and self.game_service:
-            # Puedes agregar lógica aquí para notificar al GameService
-            print(f"Clima cambiado a: {condition} (multiplicador: {multiplier:.2f})")
 
     def get_current_weather_info(self):
         """Obtiene información del clima actual para la vista"""
@@ -161,3 +163,47 @@ class controller_game:
     def move_courier(self, dx, dy):
         """Mueve al courier (sin modificar el courier por ahora)"""
         self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy)
+        
+    def create_from(self,type):
+        """
+        retorna un numero random dependiendo del caso que se le pida para lso distintos atributos de Job
+        """
+        match type:
+            case 'tupla':
+                return (random.randint(0,29),random.randint(0,29))
+            case 'int':
+                return random.randint(1,9)
+            case 'float':
+                return random.randint(100,500)
+            case 'deadline':
+                return random.randint(20,59)
+            
+    def new_jobs(self):
+        """
+        Genera pedidos nuevos y los mete a una lista nueva que se usara posteriormente
+        """
+        datos = []
+        for i in range(0,5):
+            curr_job = {
+            "id" : "REQ-00" + str(self.create_from('int')),
+            "pickup" : self.create_from('tupla'),
+            "dropoff" : self.create_from('tupla'),
+            "payout" : self.create_from('float'),
+            "deadline" : "2025-09-01T12:" + str(self.create_from('deadline')),
+            "weight" : self.create_from('int'),
+            "priority" : self.create_from('int'),
+            "release_time" : self.create_from('int')
+            }
+            datos.append(Job(**curr_job))
+        return datos
+    
+    def refresh_jobs(self,raw_jobs):
+        """
+        Carga una nueva lista de pedidos a la lista principal
+        """
+        for job in raw_jobs:
+            self.jobs.append(job)
+
+            
+        
+            

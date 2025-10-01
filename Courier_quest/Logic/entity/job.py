@@ -1,6 +1,4 @@
 from typing import Tuple
-
-
 class Job:
     """
     Representa un pedido con origen, destino, pago y restricciones.
@@ -15,7 +13,7 @@ class Job:
         deadline: str,
         weight: float,
         priority: int,
-        release_time: int,
+        release_time: int
     ):
         self.id = id
         self.pickup = tuple(pickup)
