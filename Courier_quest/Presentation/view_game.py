@@ -355,11 +355,11 @@ class View_game:
     
     # Relámpagos - SOLUCIÓN SIMPLE
      current_time = pygame.time.get_ticks()
-     if current_time % 2000 < 20:  # Cambié a 20ms en vez de 100ms
+     if current_time % 8000 < 20:  
         flash_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         flash_surface.fill((255, 255, 255, int(150 * intensity)))
         self.screen.blit(flash_surface, (0, 0))
-        self.play_Sound("thunder")  # Asegúrate que sea play_sound
+        self.play_Sound("thunder")  
 
     def _draw_fog_effect(self, intensity):
      fog_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
