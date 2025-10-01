@@ -8,7 +8,7 @@ from Logic.entity.courier import Courier
 from Logic.entity import courier
 
 CELL_SIZE = 24
-HUD_HEIGHT = 80
+HUD_HEIGHT = 150
 FPS = 60
 prev = ''
 
@@ -187,18 +187,15 @@ class View_game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False   
-
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # clic izquierdo
-                # Botón de inventario
-                if hasattr(self, "inv_button") and self.inv_button.collidepoint(event.pos):
-                    self.show_inventory = not getattr(self, "show_inventory", False)
-
-                # Si inventario está abierto, revisar botones de orden
-                if getattr(self, "show_inventory", False):
-                    if hasattr(self, "priority_button") and self.priority_button.collidepoint(event.pos):
-                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
-                    elif hasattr(self, "deadline_button") and self.deadline_button.collidepoint(event.pos):
-                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
+            elif event.type == pygame.KEYDOWN:  # aquí detectamos teclas
+               if event.key == pygame.K_i:
+                   self.show_inventory = not getattr(self, "show_inventory", False)
+                # Si inventario está abierto, revisar teclas de ordenamiento
+               if getattr(self, "show_inventory", False):
+                   if event.key == pygame.K_1:
+                       self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
+                   elif event.key == pygame.K_2:
+                       self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
 
 
 
@@ -594,11 +591,35 @@ class View_game:
         self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 
         # Botón Inventario
-        self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
+        self.inv_button = pygame.Rect(w - 710, h - HUD_HEIGHT +80, 100, 30)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
 
-        btn_text = self.font.render("Inventario", True, (255, 255, 255))
-        self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
+        btn_text = self.font.render("Inventario", True, (200, 200, 50))
+        self.screen.blit(btn_text, (w - 710, h - HUD_HEIGHT + 80))
+        
+        # Descripcion controles
+        btn_controls = self.font.render("Controles", True, (200, 200, 50))
+        self.screen.blit(btn_controls, (w - 220, h - HUD_HEIGHT + 20))
+        
+        tomar = self.font.render(
+            f"Tomar:   E", True, (200, 200, 50),
+        )
+        self.screen.blit(tomar, (w - 300, h - HUD_HEIGHT + 45))
+        
+        rechazar = self.font.render(
+            f"Rechazar:   Q", True, (200, 200, 50),
+        )
+        self.screen.blit(rechazar, (w - 300, h - HUD_HEIGHT + 65))
+        
+        entregar = self.font.render(
+            f"Entregar:   R", True, (200, 200, 50),
+        )
+        self.screen.blit(entregar, (w - 300, h - HUD_HEIGHT + 85))
+        inventario = self.font.render(
+            f"Inventario:   i    (cambiar 1 - 2)", True, (200, 200, 50),
+        )
+        self.screen.blit(inventario, (w - 300, h - HUD_HEIGHT + 105))
+        
 
         # Barra de stamina (energía)
         courier = self.engine.courier
