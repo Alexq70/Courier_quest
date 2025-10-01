@@ -8,7 +8,11 @@ from Logic.entity.courier import Courier
 from Logic.entity import courier
 
 CELL_SIZE = 24
+<<<<<<< HEAD
 HUD_HEIGHT = 150
+=======
+HUD_HEIGHT = 80
+>>>>>>> d29e285 (merge)
 FPS = 60
 prev = ''
 
@@ -78,7 +82,6 @@ class View_game:
         self.current_weather_display = ""
         self.weather_transition_progress = 0.0
         pygame.mixer.music.play(-1)
-        self.roar=True
         pygame.mixer.music.set_volume(0.3)
 
     def _load_sounds(self, tiles_dir):  
@@ -88,10 +91,14 @@ class View_game:
         "thunder": "thunder.mp3",
         "acept":"acept.mp3",
         "error":"error.mp3",
+<<<<<<< HEAD
         "remove":"remove.mp3",
         "rain":"rain.mp3",
         "roar":"roar.mp3",
         "storm":"storm"
+=======
+        "remove":"remove.mp3"
+>>>>>>> d29e285 (merge)
       }
     
       self.sounds = {}
@@ -207,9 +214,6 @@ class View_game:
         self.engine.move_courier(dx, dy)
 
     def _update(self, dt: float):
-        if(self.roar==True):
-            self.roar=False
-            self.play_Sound("roar")
         self.move_timer += dt
         if self.move_timer >= self.move_delay:
             keys = pygame.key.get_pressed()
@@ -349,11 +353,6 @@ class View_game:
         pygame.draw.line(self.screen, (0, 100, 255), (x, y), (x, y + 8), 2)
 
     def _draw_rain_effect(self, intensity):
-     if not hasattr(self, '_rain_played'):
-         self.play_Sound("rain")
-         self._rain_played=True
-    
-     
      for i in range(int(15 * intensity)):
         x = (pygame.time.get_ticks() // 8 + i * 45) % self.screen.get_width()
         y = (pygame.time.get_ticks() // 4 + i * 25) % self.screen.get_height()
@@ -361,21 +360,6 @@ class View_game:
         pygame.draw.line(self.screen, (0, 0, 180), (x, y), (x, y + 12), 2)
 
     def _draw_storm_effect(self, intensity):
-     if not hasattr(self, '_last_thunder_time'):
-      self._last_thunder_time = 0
-
-     current_time = pygame.time.get_ticks()
-
-# Verificar que hayan pasado al menos 8 segundos desde el último trueno
-     if current_time - self._last_thunder_time > 8000 and current_time % 8000 < 30:
-      flash_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-      flash_surface.fill((255, 255, 255, int(150 * intensity)))
-      self.screen.blit(flash_surface, (0, 0))
-      self.play_Sound("thunder")
-      self._last_thunder_time = current_time 
-     if not hasattr(self, '_rain_played'):
-         self.play_Sound("rain")
-         self._rain_played=True
     # Lluvia muy intensa
      for i in range(int(20 * intensity)):
         x = (pygame.time.get_ticks() // 6 + i * 35) % self.screen.get_width()
@@ -387,12 +371,13 @@ class View_game:
      storm_bg.fill((0, 0, 50, int(60 * intensity)))
      self.screen.blit(storm_bg, (0, 0))
     
-    
+    # Relámpagos - SOLUCIÓN SIMPLE
      current_time = pygame.time.get_ticks()
-     if current_time % 8000 < 30:  
+     if current_time % 8000 < 20:  
         flash_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         flash_surface.fill((255, 255, 255, int(150 * intensity)))
         self.screen.blit(flash_surface, (0, 0))
+        self.play_Sound("thunder")  
 
     def _draw_fog_effect(self, intensity):
      fog_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
@@ -646,6 +631,11 @@ class View_game:
         )
         self.screen.blit(inventario, (w - 300, h - HUD_HEIGHT + 105))
         
+        self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
+        pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
+
+        btn_text = self.font.render("Inventario", True, (255, 255, 255))
+        self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
 
         # Barra de stamina (energía)
         courier = self.engine.courier

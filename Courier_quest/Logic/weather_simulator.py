@@ -157,5 +157,5 @@ class WeatherSimulator:
     def _get_transition_progress(self) -> float:
         if not self.is_transitioning:
             return 0
-        lapso = time.time() - self.transition_start_time
-        return min(1.0, lapso / self.transition_duration)
+        elapsed = time.time() - self.transition_start_time
+        return min(1.0, elapsed / self.transition_duration)
