@@ -8,6 +8,7 @@ from Presentation.controller_game import controller_game
 CELL_SIZE = 30
 HUD_HEIGHT = 80
 FPS = 60
+prev = ''
 
 class View_game:
     """Interfaz gráfica con Pygame para Courier Quest.""" 
@@ -369,7 +370,6 @@ class View_game:
 
     def _draw_map(self):
         cmap = self.engine.city_map
-
         for y in range(cmap.height):
             for x in range(cmap.width):
                 key = cmap.tiles[y][x]
@@ -455,12 +455,12 @@ class View_game:
                 1  
             )
 
-    def _draw_jobs(self):
+    def _draw_jobs(self): 
         curr_job  = self.engine.get_last_job()
         if curr_job is not None:
             if curr_job.dropoff != (0,0):
                x1,y1 = curr_job.dropoff
-               self.engine.city_map.tiles[y1][x1] = "B"
+               self.engine.city_map.tiles[y1][x1] = self.prev
        # se puede hace rque se imprima solo la promera vez
         for job in self.engine.jobs:
             x, y = job.pickup
@@ -480,11 +480,12 @@ class View_game:
         - R: entregar job (solo si está en inventario y en dropoff).
         """
         keys = pygame.key.get_pressed()
-
         # Tomar job
         if keys[pygame.K_e] and job is not None:
             if job not in self.engine.courier.inventory.items:  # aún no tomado
                 if self.engine.courier.pick_job(job):
+                    x,y = job.dropoff 
+                    self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
                     self.engine.jobs.remove(job)  # lo sacamos de la lista global
                    
 
@@ -494,10 +495,10 @@ class View_game:
                 self.engine.jobs.remove(job)
 
         if keys[pygame.K_r]:
-           if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
-              self.engine.set_last_job(job)
-              self.earned += job.payout
-              self.engine.courier.deliver_job(job)
+            if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
+               self.engine.set_last_job(job)
+               self.earned += job.payout
+               self.engine.courier.deliver_job(job)
 
 
     def _draw_courier(self):
