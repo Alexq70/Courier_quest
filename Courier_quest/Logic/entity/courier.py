@@ -64,10 +64,21 @@ class Courier:
             self.exhausted_lock = True  # activa el bloqueo
 
     def _calculate_stamina_cost(self) -> float:
-        """Consumo por celda: -0.5 base + extras"""
-        base = 0.5
-        extras = self.current_load * 0.1  # cada kg suma 0.1
-        return base + extras
+        """Consumo por celda: -0.5 base + extras por peso y clima"""
+        cost = 0.5  # base
+
+        # Penalización por peso total > 3
+        cost += 0.2 * max(0, self.current_load - 3)
+
+        # Penalización por clima
+        if self.weather in ["rain", "wind"]:
+            cost += 0.1
+        elif self.weather == "heat":
+            cost += 0.2
+        elif self.weather == "storm":
+            cost += 0.3
+
+        return cost
 
     def get_stamina_percentage(self) -> float:
         """Porcentaje de energía (0.0 a 1.0)"""

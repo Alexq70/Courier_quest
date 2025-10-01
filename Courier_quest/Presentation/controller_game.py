@@ -145,6 +145,8 @@ class controller_game:
         if current_time - self.last_weather_update >= self.weather_update_interval:
             self._update_weather()
             self.last_weather_update = current_time
+            # Actualizar el estado del courier con la condición climática actual
+            self.courier.weather = self.weather_simulator.current_condition
 
     def _update_weather(self):
         """Actualiza el estado del clima"""
