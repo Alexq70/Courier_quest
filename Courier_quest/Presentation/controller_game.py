@@ -152,12 +152,8 @@ class controller_game:
         if not self.weather_simulator:
             return
         
-        condition, intensity, multiplier, changed = self.weather_simulator.update()
+        self.weather_simulator.update()
         
-        # Notificar si cambió el clima
-        if changed and self.game_service:
-            # Puedes agregar lógica aquí para notificar al GameService
-            print(f"Clima cambiado a: {condition} (multiplicador: {multiplier:.2f})")
 
     def get_current_weather_info(self):
         """Obtiene información del clima actual para la vista"""

@@ -5,7 +5,7 @@ from Logic.entity.job import Job
 import pygame
 from Presentation.controller_game import controller_game
 
-CELL_SIZE = 30
+CELL_SIZE = 20
 HUD_HEIGHT = 80
 FPS = 60
 prev = ''
@@ -16,6 +16,7 @@ class View_game:
     def __init__(self):
         """Inicializar Pygame, motor y cargar todos los assets."""
         pygame.init()
+        pygame.mixer.init
         self.engine = controller_game()
         self.engine.start()
 
@@ -36,6 +37,7 @@ class View_game:
         
         self.courier_images = {}
         self._load_courier_images(tiles_dir)
+        self._load_sounds(tiles_dir)
 
         font_file = assets_dir / "font.ttf"
         if font_file.exists():
@@ -70,9 +72,39 @@ class View_game:
         self.goal = self.engine.city_map.goal
         self.earned = 0.0
 
-        # Estado del clima para la vista
+        
         self.current_weather_display = ""
         self.weather_transition_progress = 0.0
+        pygame.mixer.music.play(-1)
+        pygame.mixer.music.set_volume(0.3)
+
+    def _load_sounds(self, tiles_dir):  
+      sounds_dict = {
+        "catch": "entrega.mp3",
+        "base": "base.mp3",  
+        "thunder": "thunder.mp3",
+        "acept":"acept.mp3"
+      }
+    
+      self.sounds = {}
+    
+      for key, filename in sounds_dict.items(): 
+        sound_path = tiles_dir / filename
+        if sound_path.exists():
+            try:
+                if key == "base":
+                   
+                    pygame.mixer.music.load(str(sound_path))
+                    print(f"Música de fondo cargada: {filename}")
+                else:
+                   
+                    self.sounds[key] = pygame.mixer.Sound(str(sound_path))
+                    print(f"Sonido cargado: {filename}")
+            except Exception as e:
+                print(f"Error cargando {filename}: {e}")
+        else:
+            print(f"Archivo no encontrado: {sound_path}")
+
 
     def _load_weather_icons(self, tiles_dir):
         """Cargar iconos para las condiciones climáticas"""
@@ -368,6 +400,10 @@ class View_game:
                         (x, y), (x + 3, y + 6), 2)
         self._draw_inventory()
 
+    def play_Sound(self,sound_name):
+        if sound_name in self.sounds:
+            self.sounds[sound_name].play()
+
     def _draw_map(self):
         cmap = self.engine.city_map
         for y in range(cmap.height):
@@ -429,6 +465,7 @@ class View_game:
                         if tipo_celda == 'D' and npc_image:
                             if h==1 and  w==1:
                                 edificio_completo.blit(npc_image, (pos_x, pos_y))
+
                             elif j == h - 1:  
                                 if self.tile_images.get('G_NPC'):  
                                     edificio_completo.blit(self.tile_images['G_NPC'], (pos_x, pos_y))
@@ -487,6 +524,7 @@ class View_game:
                     x,y = job.dropoff 
                     self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
                     self.engine.jobs.remove(job)  # lo sacamos de la lista global
+                    self.play_Sound("catch")
                    
 
         # Cancelar job (solo pickups)
@@ -498,6 +536,7 @@ class View_game:
             if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
                self.engine.set_last_job(job)
                self.earned += job.payout
+               self.play_Sound("acept")
                self.engine.courier.deliver_job(job)
 
 
