@@ -103,7 +103,7 @@ class controller_game:
         print(f"Clima dinámico inicializado: {self.weather_simulator.current_condition}")
 
         # 4) Courier
-        self.courier = Courier(start_pos=(0, 0), max_weight=8)
+        self.courier = Courier(start_pos=(0, 0), max_weight=10)
         print(f"Courier inicializado en {self.courier.position}")
 
     def _generate_initial_bursts(self):
@@ -141,7 +141,6 @@ class controller_game:
            if len(self.courier.inventory.items) <=0:
             self.refresh_jobs(self.new_jobs())
             
-            
         # Actualizar clima si es tiempo
         if current_time - self.last_weather_update >= self.weather_update_interval:
             self._update_weather()
@@ -165,10 +164,6 @@ class controller_game:
         """Mueve al courier (sin modificar el courier por ahora)"""
         self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy)
         
-        
-    def refresh_jobs(self):
-        return
-    
     def create_from(self,type):
         """
         retorna un numero random dependiendo del caso que se le pida para lso distintos atributos de Job
@@ -177,7 +172,7 @@ class controller_game:
             case 'tupla':
                 return (random.randint(0,29),random.randint(0,29))
             case 'int':
-                return random.randint(0,10)
+                return random.randint(1,9)
             case 'float':
                 return random.randint(100,500)
             case 'deadline':
