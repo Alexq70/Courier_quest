@@ -4,8 +4,10 @@ from Logic.entity.job import Job
 
 import pygame
 from Presentation.controller_game import controller_game
+from Logic.entity.courier import Courier
+from Logic.entity import courier
 
-CELL_SIZE = 20
+CELL_SIZE = 24
 HUD_HEIGHT = 80
 FPS = 60
 prev = ''
@@ -236,6 +238,10 @@ class View_game:
             
             self.move_timer = 0.0
 
+            courier = self.engine.courier
+            if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
+                courier.recover_stamina(0.2)  # ajustá el valor según el documento
+
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""
         self._draw_map()
@@ -257,7 +263,9 @@ class View_game:
       is_transitioning = weather_info["is_transitioning"]
       transition_progress = weather_info["transition_progress"]
 
-      self.move_delay=multiplier*0.1
+      stamina_mult = self.engine.courier.get_speed_multiplier()
+      self.move_delay = multiplier * stamina_mult * 0.1
+
     
       weather_x = self.screen.get_width() - 200
       weather_y = 10
@@ -568,33 +576,66 @@ class View_game:
         pygame.draw.circle(self.screen, (255, 0, 0), center, CELL_SIZE // 3)
 
     def _draw_hud(self):
-        w, h = self.screen.get_size()
-        hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
-        pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
-      # Barra inferior
+        # Barra inferior
         w, h = self.screen.get_size()
         hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
         pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
 
-      # Tiempo
+        # Tiempo
         time_surf = self.font.render(
-          f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
+            f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
         )
         self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
 
-      # Ingresos
+        # Ingresos
         earn_surf = self.font.render(
-          f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
-      )
+            f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
+        )
         self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 
-      # Botón Inventario
+        # Botón Inventario
         self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
 
         btn_text = self.font.render("Inventario", True, (255, 255, 255))
         self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
-  
+
+        # Barra de stamina (energía)
+        courier = self.engine.courier
+        stamina_pct = courier.get_stamina_percentage()
+        stamina_actual = int(courier.stamina)
+        stamina_max = int(courier.stamina_max)
+        stamina_state = courier.get_stamina_state()
+
+        bar_height = HUD_HEIGHT - 20
+        bar_width = 20
+        bar_x = 10
+        bar_y = h - HUD_HEIGHT - bar_height - 10  # ⬅️ ahora está justo encima del HUD
+
+        # Fondo de la barra
+        pygame.draw.rect(self.screen, (80, 80, 80), (bar_x, bar_y, bar_width, bar_height), border_radius=4)
+
+        # Color según estado
+        if stamina_state == "Normal":
+            color = (0, 200, 0)
+        elif stamina_state == "Cansado":
+            color = (255, 200, 0)
+        else:
+            color = (200, 0, 0)
+
+        # Relleno proporcional
+        fill_height = int(bar_height * stamina_pct)
+        fill_y = bar_y + (bar_height - fill_height)
+        pygame.draw.rect(self.screen, color, (bar_x, fill_y, bar_width, fill_height), border_radius=4)
+
+        # Texto: número y estado
+        text_x = bar_x + 30
+        text_y = bar_y + bar_height // 2 - 10
+        stamina_text = self.small_font.render(f"Energía: {stamina_actual}/{stamina_max}", True, (255, 255, 255))
+        state_text = self.small_font.render(f"Estado: {stamina_state}", True, (255, 255, 255))
+        self.screen.blit(stamina_text, (text_x, text_y))
+        self.screen.blit(state_text, (text_x, text_y + 20))
+
 
     def _pickup_job(self):
         self._update_job(self.engine.job_nearly())
