@@ -83,7 +83,9 @@ class View_game:
         "catch": "entrega.mp3",
         "base": "base.mp3",  
         "thunder": "thunder.mp3",
-        "acept":"acept.mp3"
+        "acept":"acept.mp3",
+        "error":"error.mp3",
+        "remove":"remove.mp3"
       }
     
       self.sounds = {}
@@ -527,12 +529,16 @@ class View_game:
                     self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
                     self.engine.jobs.remove(job)  # lo sacamos de la lista global
                     self.play_Sound("catch")
+                else:
+                   self.play_Sound("error")
+                    
                    
 
         # Cancelar job (solo pickups)
         if keys[pygame.K_q] and job is not None:
             if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
                 self.engine.jobs.remove(job)
+                self.play_Sound("remove")
 
         if keys[pygame.K_r]:
             if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
@@ -540,6 +546,9 @@ class View_game:
                self.earned += job.payout
                self.play_Sound("acept")
                self.engine.courier.deliver_job(job)
+            else:
+                if job in self.engine.game_service.courier.inventory.items and job is not None:
+                   self.play_Sound("error")
 
 
     def _draw_courier(self):
