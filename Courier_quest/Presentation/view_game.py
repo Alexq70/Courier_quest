@@ -8,11 +8,7 @@ from Logic.entity.courier import Courier
 from Logic.entity import courier
 
 CELL_SIZE = 24
-<<<<<<< HEAD
-HUD_HEIGHT = 150
-=======
 HUD_HEIGHT = 80
->>>>>>> d29e285 (merge)
 FPS = 60
 prev = ''
 
@@ -91,14 +87,11 @@ class View_game:
         "thunder": "thunder.mp3",
         "acept":"acept.mp3",
         "error":"error.mp3",
-<<<<<<< HEAD
         "remove":"remove.mp3",
         "rain":"rain.mp3",
         "roar":"roar.mp3",
-        "storm":"storm"
-=======
+        "storm":"storm",
         "remove":"remove.mp3"
->>>>>>> d29e285 (merge)
       }
     
       self.sounds = {}
