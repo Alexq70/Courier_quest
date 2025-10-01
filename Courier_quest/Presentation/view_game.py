@@ -160,6 +160,10 @@ class View_game:
             print(f"Error cargando imágenes del courier: {e}")
             self.courier_images = {}
 
+    def play_Sound(self,sound_name):
+        if sound_name in self.sounds:
+            self.sounds[sound_name].play()
+
     def run(self):
         """Bucle principal: eventos, actualización y dibujo."""
         while self.running:
@@ -346,14 +350,16 @@ class View_game:
     
     # Fondo oscuro para tormenta
      storm_bg = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-     storm_bg.fill((0, 0, 50, int(60 * intensity)))  # AZUL MUY OSCURO
+     storm_bg.fill((0, 0, 50, int(60 * intensity)))
      self.screen.blit(storm_bg, (0, 0))
     
-    # Relámpagos BLANCOS MUY BRILLANTES
-     if pygame.time.get_ticks() % 1500 < 100:
+    # Relámpagos - SOLUCIÓN SIMPLE
+     current_time = pygame.time.get_ticks()
+     if current_time % 2000 < 20:  # Cambié a 20ms en vez de 100ms
         flash_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-        flash_surface.fill((255, 255, 255, int(150 * intensity)))  # BLANCO PURO
+        flash_surface.fill((255, 255, 255, int(150 * intensity)))
         self.screen.blit(flash_surface, (0, 0))
+        self.play_Sound("thunder")  # Asegúrate que sea play_sound
 
     def _draw_fog_effect(self, intensity):
      fog_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
@@ -399,10 +405,6 @@ class View_game:
         pygame.draw.line(self.screen, (200, 230, 255), 
                         (x, y), (x + 3, y + 6), 2)
         self._draw_inventory()
-
-    def play_Sound(self,sound_name):
-        if sound_name in self.sounds:
-            self.sounds[sound_name].play()
 
     def _draw_map(self):
         cmap = self.engine.city_map
