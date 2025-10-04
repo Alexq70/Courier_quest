@@ -363,10 +363,6 @@ class View_game:
      if is_transitioning == False and not hasattr(self, '_rain_ligth_played'):
         self.play_Sound("rain",1)
         self._rain_ligth_played = True
-    
-     if is_transitioning == False and not hasattr(self, '_rain_played'):
-        self.play_Sound("rain",1)
-        self._rain_played = True
      for i in range(int(10 * intensity)):
         x = (pygame.time.get_ticks() // 12 + i * 55) % self.screen.get_width()
         y = (pygame.time.get_ticks() // 6 + i * 35) % self.screen.get_height()
@@ -375,12 +371,12 @@ class View_game:
 
     def _draw_rain_effect(self, intensity,is_transitioning):
      if is_transitioning == True and hasattr(self, '_rain_played'):
-        self.stop_Sound("rain")
+        self.stop_Sound("storm")
         del self._rain_played
         return  # Salir temprano
     
      if is_transitioning == False and not hasattr(self, '_rain_played'):
-        self.play_Sound("rain",1)
+        self.play_Sound("storm",1)
         self._rain_played = True
      for i in range(int(15 * intensity)):
         x = (pygame.time.get_ticks() // 8 + i * 45) % self.screen.get_width()
@@ -497,7 +493,6 @@ class View_game:
      for i in range(int(10 * intensity)):
         x = (pygame.time.get_ticks() // 10 + i * 60) % self.screen.get_width()
         y = (pygame.time.get_ticks() // 5 + i * 40) % self.screen.get_height()
-        # Copos AZUL BLANQUECINO
         pygame.draw.line(self.screen, (200, 230, 255), 
                         (x, y), (x + 3, y + 6), 2)
         self._draw_inventory()
@@ -628,7 +623,6 @@ class View_game:
                     
                    
 
-        # Cancelar job (solo pickups)
         if keys[pygame.K_q] and job is not None:
             if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
                 self.engine.jobs.remove(job)
@@ -686,7 +680,6 @@ class View_game:
         btn_text = self.font.render("Inventario", True, (200, 200, 50))
         self.screen.blit(btn_text, (w - 710, h - HUD_HEIGHT + 80))
         
-        # Descripcion controles
         btn_controls = self.font.render("Controles", True, (200, 200, 50))
         self.screen.blit(btn_controls, (w - 220, h - HUD_HEIGHT + 20))
         
@@ -760,19 +753,16 @@ class View_game:
        if not getattr(self, "show_inventory", False):
            return
 
-       # rectángulo principal del popup
        w, h = self.screen.get_size()
        inv_rect = pygame.Rect(w//2 - 175, h//2 - 130, 400, 300)
        pygame.draw.rect(self.screen, (50, 50, 50), inv_rect, border_radius=10)
        pygame.draw.rect(self.screen, (200, 200, 200), inv_rect, 2, border_radius=10)
 
-       # título
        title = self.font.render("Inventario", True, (255, 255, 255))
        self.screen.blit(title, (inv_rect.x + 10, inv_rect.y + 10))
        capacity = self.font.render( f"Capacidad: {self.engine.courier.inventory.max_weight} kg." , True, (255, 255, 255))
        self.screen.blit(capacity, (inv_rect.x + 210, inv_rect.y + 10))
 
-       # botones para elegir orden
        self.priority_button = pygame.Rect(inv_rect.x + 10, inv_rect.y + 40, 120, 30)
        self.deadline_button = pygame.Rect(inv_rect.x + 220, inv_rect.y + 40, 120, 30)
 
@@ -784,7 +774,6 @@ class View_game:
        self.screen.blit(txt_p, (self.priority_button.x + 10, self.priority_button.y + 5))
        self.screen.blit(txt_d, (self.deadline_button.x + 10, self.deadline_button.y + 5))
 
-       # mostrar items ya ordenados por el engine
        items = getattr(self, "ordered_jobs", self.engine.courier.inventory.items)
        if items:
            for i, item in enumerate(items[:5]):  # muestra hasta 5
