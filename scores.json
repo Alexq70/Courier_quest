@@ -26,5 +26,33 @@
     "time_left": 868.6020000000011,
     "finished_at": 1759608043.3677268,
     "reason": "manual"
+  },
+  {
+    "total_points": -655.8589999999998,
+    "base_income": 220.0,
+    "penalties": 1050.0,
+    "time_bonus": 174.1410000000002,
+    "earned": 220.0,
+    "goal": 1500.0,
+    "reputation": 19.0,
+    "delivered": 1,
+    "time_spent": 29.294999999999153,
+    "time_left": 870.7050000000008,
+    "finished_at": 1759615110.9522092,
+    "reason": "reputation"
+  },
+  {
+    "total_points": -698.0511999999924,
+    "base_income": 220.0,
+    "penalties": 1050.0,
+    "time_bonus": 131.94880000000762,
+    "earned": 220.0,
+    "goal": 1500.0,
+    "reputation": 19.0,
+    "delivered": 1,
+    "time_spent": 240.25599999996186,
+    "time_left": 659.7440000000381,
+    "finished_at": 1759615018.1390316,
+    "reason": "reputation"
   }
 ]

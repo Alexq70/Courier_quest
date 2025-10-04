@@ -1,7 +1,7 @@
 # src/models/courier.py
 
 import time
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from Logic.entity.job import Job
 from Logic.entity.inventory import Inventory
 from Logic.entity.city_map import CityMap
@@ -25,6 +25,7 @@ class Courier:
         self.reputation = 70  # valor inicial
         self.reputation_streak = 0  # para rachas sin penalización
         self.first_late_penalty_reduced = False  # control de tardanza reducida
+        self.defeat_reason: Optional[str] = None  # motivo de derrota si ocurre
 
         # Resistencia
         self.stamina_max: float = 100.0
@@ -162,11 +163,16 @@ class Courier:
     def is_stationary(self, previous_pos: Tuple[int, int]) -> bool:
         return self.position == previous_pos
     
+    def trigger_defeat(self, reason: str) -> None:
+        """Marca al courier como derrotado para que la vista maneje el final."""
+        if self.defeat_reason is None:
+            self.defeat_reason = reason
+
     def adjust_reputation(self, delta: int):
         self.reputation = max(0, min(100, self.reputation + delta))
 
         if self.reputation < 20:
-            self.trigger_defeat("Reputación crítica")
+            self.trigger_defeat("reputation")
 
         if delta < 0:
             self.reputation_streak = 0
@@ -175,3 +181,4 @@ class Courier:
             if self.reputation_streak == 3:
                 self.adjust_reputation(+2)
                 self.reputation_streak = 0
+
