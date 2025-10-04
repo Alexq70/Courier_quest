@@ -186,7 +186,7 @@ class View_game:
     def play_Sound(self,sound_name,loop):
         if sound_name in self.sounds:
             self.sounds[sound_name].play(loop)
-            pygame.mixer.Sound.set_volume(0.5)
+            self.sounds[sound_name].set_volume(0.5)
     
     def stop_Sound(self, sound_name):
      if hasattr(self, 'sounds') and sound_name in self.sounds:

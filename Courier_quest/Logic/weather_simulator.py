@@ -23,8 +23,8 @@ class WeatherSimulator:
         
         # Temporizador
         self.burst_start_time = time.time()
-        self.burst_duration = random.uniform(5, 10)  # 45-60 segundos
-        self.transition_duration = random.uniform(3, 5)  # 3-5 segundos para transición
+        self.burst_duration = 60 
+        self.transition_duration = random.uniform(3, 5)  
         self.is_transitioning = False
         self.transition_start_time = 0
         
@@ -102,7 +102,7 @@ class WeatherSimulator:
         
         # Reiniciar temporizador para nuevo burst
         self.burst_start_time = time.time()
-        self.burst_duration = random.uniform(5, 10)
+        self.burst_duration = 60
         self.transition_duration = random.uniform(3, 5)
         
         print(f"Transición completada: {self.current_condition} (mult: {self.current_speed_multiplier:.2f}) - Dura {self.burst_duration:.1f}s")
