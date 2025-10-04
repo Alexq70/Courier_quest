@@ -91,33 +91,33 @@ class Courier:
             "was_late": lateness_seconds > 0,
         }
 
-    def move_courier(self, width, height, citymap, dx: int, dy: int):
-        """Verifica si puede moverse y actualiza posición"""
+    def move_courier(self, width, height, citymap, dx: int, dy: int,Del):
         if not self.can_move():
-            return  # No puede moverse si está exhausto
-
+            return  
         x, y = self.position
-        nx, ny = x + dx, y + dy
         cmap = citymap
-        if (0 <= nx < width and 0 <= ny < height and not cmap.is_blocked(nx, ny)):
+        if(Del==False):
+         x, y=dx,dy
+         if (0 <= x < width and 0 <= y < height and not cmap.is_blocked(x, y)):
+            self.move_to((x, y))
+        else:
+         nx, ny = x + dx, y + dy
+         if (0 <= nx < width and 0 <= ny < height and not cmap.is_blocked(nx, ny)):
             self.move_to((nx, ny))
 
     def move_to(self, position: Tuple[int, int]) -> None:
-        """Actualiza posición y consume resistencia"""
         self.position = position
         self.stamina = max(0.0, self.stamina - self._calculate_stamina_cost())
 
         if self.stamina <= 0:
-            self.exhausted_lock = True  # activa el bloqueo
+            self.exhausted_lock = True 
 
     def _calculate_stamina_cost(self) -> float:
         """Consumo por celda: -0.5 base + extras por peso y clima"""
         cost = 0.5  # base
 
-        # Penalización por peso total > 3
         cost += 0.2 * max(0, self.current_load - 3)
 
-        # Penalización por clima
         if self.weather in ["rain", "wind"]:
             cost += 0.1
         elif self.weather == "heat":
@@ -141,13 +141,11 @@ class Courier:
             return "Normal"
 
     def can_move(self) -> bool:
-        """Puede moverse si no está bloqueado o si ya se recuperó"""
         if self.exhausted_lock:
             return self.stamina >= 30.0
         return self.stamina > 0.0
 
     def get_speed_multiplier(self) -> float:
-        """Multiplicador de velocidad según estado"""
         state = self.get_stamina_state()
         if state == "Normal":
             return 1.0

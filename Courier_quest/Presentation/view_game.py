@@ -128,7 +128,7 @@ class View_game:
                 if key == "base":
                    
                     pygame.mixer.music.load(str(sound_path))
-                    print(f"MÃºsica de fondo cargada: {filename}")
+                    print(f"Musica de fondo cargada: {filename}")
                 else:
                    
                     self.sounds[key] = pygame.mixer.Sound(str(sound_path))
@@ -196,6 +196,7 @@ class View_game:
     def play_Sound(self,sound_name,loop):
         if sound_name in self.sounds:
             self.sounds[sound_name].play(loop)
+            self.sounds[sound_name].set_volume(0.5)
     
     def stop_Sound(self, sound_name):
      if hasattr(self, 'sounds') and sound_name in self.sounds:
@@ -703,17 +704,20 @@ class View_game:
         self.engine.move_courier(dx, dy)
 
     def _update(self, dt: float):
-        if(self.roar==True):
-            self.roar=False
-            self.play_Sound("roar",0)
-            
-        self.move_timer += dt
-        if self.move_timer >= self.move_delay:
-            keys = pygame.key.get_pressed()
-            dx = dy = 0
-            
-            self._pickup_job()
-
+     if self.roar == True:
+        self.roar = False
+        self.play_Sound("roar", 0)
+        
+     self.move_timer += dt
+     if self.move_timer >= self.move_delay:
+        keys = pygame.key.get_pressed()
+        dx = dy = 0
+        self._pickup_job()
+        if keys[pygame.K_BACKSPACE]:
+            dx, dy = self.engine.get_steps()
+            self._move_courier(dx, dy,False)
+            self.move_timer = 0
+        else:
             if keys[pygame.K_UP]:
                 dy = -1
                 self.current_direction = 2  
@@ -733,15 +737,15 @@ class View_game:
             elif keys[pygame.K_RIGHT]:
                 dx = 1
                 self.current_direction = 1 
-            
+                    
             if dx or dy:
-                self._move_courier(dx, dy)
-            
-            self.move_timer = 0.0
+              self.engine.include_step(self.engine.courier.position)
+              self._move_courier(dx, dy,True)
+              self.move_timer = 0  
 
             courier = self.engine.courier
             if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
-                courier.recover_stamina(1.0)  # recuperaciÃ³n al estar quieto
+                courier.recover_stamina(1.0) 
 
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""

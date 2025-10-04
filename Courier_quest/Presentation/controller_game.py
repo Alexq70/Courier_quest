@@ -165,16 +165,12 @@ class controller_game:
             return self.weather_simulator.get_weather_info()
         return {}
 
-    def move_courier(self, dx, dy):
-        """Mueve al courier (sin modificar el courier por ahora)"""
-        self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy)
+    def move_courier(self, dx, dy,Del):
+        self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy,Del)
         
             
     def new_jobs(self):
-        """
-        Genera pedidos nuevos y los mete a una lista nueva que se usara posteriormente
-        """
-         # 2) Pedidos
+        
         print("Cargando pedidos...")
         jobs_resp = self.api.fetch("city/jobs")
         raw_jobs = self._deep_unwrap(jobs_resp)
@@ -191,6 +187,12 @@ class controller_game:
         Carga una nueva lista de pedidos a la lista principal
         """
         self.new_jobs()
+
+    def get_steps(self):
+       return self.game_service.get_steps()
+
+    def include_step(self,pos):
+        self.game_service.include_new_step(pos)
 
             
         

@@ -1,6 +1,7 @@
+from collections import deque
 import math
 import time
-from typing import Iterable
+from typing import Iterable, Tuple
 
 from Logic.entity.job import Job
 from Logic.entity.weather_burst import WeatherBurst
@@ -32,6 +33,7 @@ class GameService:
         self._bind_jobs_to_session(self.jobs)
         if hasattr(self.job_example, "bind_session_start"):
             self.job_example.bind_session_start(self.session_start)
+        self.cola = deque()
 
     def _bind_jobs_to_session(self, jobs_iterable: Iterable[Job]) -> None:
         for job in jobs_iterable:
@@ -73,4 +75,15 @@ class GameService:
     def set_jobs(self, jobs: Iterable[Job]) -> None:
         self.jobs = jobs
         self._bind_jobs_to_session(self.jobs)
+    
+    def get_steps(self):
+        if self.cola: 
+            return self.cola.pop()
+        return (0, 0) 
+    
+    def include_new_step(self,pos):
+        self.cola.append(pos)
+    
+    def has_steps(self):
+        return len(self.cola) > 0
 
