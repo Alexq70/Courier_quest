@@ -16,7 +16,7 @@ FPS = 60
 prev = ''
 
 class View_game:
-    """Interfaz gráfica con Pygame para Courier Quest.""" 
+    """Interfaz grÃ¡fica con Pygame para Courier Quest.""" 
 
     def __init__(self):
         """Inicializar Pygame, motor y cargar todos los assets."""
@@ -37,7 +37,7 @@ class View_game:
         self.move_delay = 0.15 
         self.current_direction = 1  
 
-        # Ruta de las imágenes 
+        # Ruta de las imÃ¡genes 
         assets_dir = Path(__file__).parent.parent.parent / "src" / "assets"
         tiles_dir = assets_dir / "tiles"
         
@@ -48,13 +48,13 @@ class View_game:
         font_file = assets_dir / "font.ttf"
         if font_file.exists():
             self.font = pygame.font.Font(str(font_file), 18)
-            self.small_font = pygame.font.Font(str(font_file), 14)  # Fuente más pequeña para clima
+            self.small_font = pygame.font.Font(str(font_file), 14)  # Fuente mÃ¡s pequeÃ±a para clima
         else:
-            print(f"WARN: no hallé {font_file}, usando SysFont")
+            print(f"WARN: no hallÃ© {font_file}, usando SysFont")
             self.font = pygame.font.SysFont(None, 18)
             self.small_font = pygame.font.SysFont(None, 14)
 
-        # Diccionario para cargar las imágenes
+        # Diccionario para cargar las imÃ¡genes
         self.tile_images = {}
         mapping = {"C": "road.png", "P": "park.png", "W":"window.PNG","G":"ground.PNG","PE":"window_job.png", "D":"drop_off.png","W_NPC":"window_npc.png","G_NPC":"ground_npc.png"}
         for key, fname in mapping.items():
@@ -69,7 +69,7 @@ class View_game:
         loaded = sorted(self.tile_images.keys())
         print(f"TILE_IMAGES cargadas: {loaded}")
 
-        # Iconos de clima (puedes agregar imágenes específicas para cada condición)
+        # Iconos de clima (puedes agregar imÃ¡genes especÃ­ficas para cada condiciÃ³n)
         self.weather_icons = {}
         self._load_weather_icons(tiles_dir)
 
@@ -118,7 +118,7 @@ class View_game:
                 if key == "base":
                    
                     pygame.mixer.music.load(str(sound_path))
-                    print(f"Música de fondo cargada: {filename}")
+                    print(f"MÃºsica de fondo cargada: {filename}")
                 else:
                    
                     self.sounds[key] = pygame.mixer.Sound(str(sound_path))
@@ -130,7 +130,7 @@ class View_game:
 
 
     def _load_weather_icons(self, tiles_dir):
-        """Cargar iconos para las condiciones climáticas"""
+        """Cargar iconos para las condiciones climÃ¡ticas"""
         weather_icon_mapping = {
             "clear": "clear.png",
             "clouds": "clouds.png", 
@@ -147,14 +147,14 @@ class View_game:
             icon_path = tiles_dir / filename
             if icon_path.exists():
                 img = pygame.image.load(str(icon_path)).convert_alpha()
-                img = pygame.transform.scale(img, (30, 30))  # Tamaño fijo para iconos
+                img = pygame.transform.scale(img, (30, 30))  # TamaÃ±o fijo para iconos
                 self.weather_icons[condition] = img
             else:
                 # Si no hay imagen, usar un placeholder con texto
-                print(f"WARN: No se encontró icono de clima: {filename}")
+                print(f"WARN: No se encontrÃ³ icono de clima: {filename}")
 
     def _load_courier_images(self, tiles_dir):
-        """Cargar todas las imágenes del courier una sola vez."""
+        """Cargar todas las imÃ¡genes del courier una sola vez."""
         try:
             image_files = {
                 0: "tiggermovil_izquierda_job.PNG",  
@@ -180,7 +180,7 @@ class View_game:
                 self.courier_images = {}
                 
         except Exception as e:
-            print(f"Error cargando imágenes del courier: {e}")
+            print(f"Error cargando imÃ¡genes del courier: {e}")
             self.courier_images = {}
 
     def play_Sound(self,sound_name,loop):
@@ -205,6 +205,13 @@ class View_game:
             if self.state == "running":
                 self.engine.update()
                 self._update(dt)
+
+                courier = self.engine.courier
+                defeat_reason = getattr(courier, "defeat_reason", None)
+                if defeat_reason and self.state == "running":
+                    self._finish_game(reason=defeat_reason)
+
+            if self.state == "running":
                 self._draw()
                 self._draw_inventory()
             else:
@@ -388,6 +395,7 @@ class View_game:
         mapping = {
             "time_up": "Fin de jornada",
             "manual": "Finalizado por jugador",
+            "reputation": "Reputacion critica",
         }
         return mapping.get(str(reason), str(reason))
 
@@ -434,9 +442,15 @@ class View_game:
               self._move_courier(dx, dy,True)
               self.move_timer = 0  
 
+<<<<<<< HEAD
               courier = self.engine.courier
               if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
                 courier.recover_stamina(1.0)  
+=======
+            courier = self.engine.courier
+            if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
+                courier.recover_stamina(1.0)  # recuperaciÃ³n al estar quieto
+>>>>>>> main
 
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""
@@ -588,11 +602,11 @@ class View_game:
       condition_text = self.small_font.render(f"{condition}", True, (255, 255, 255))
       self.screen.blit(condition_text, (text_x, weather_y))
     
-      multiplier_text = self.small_font.render(f"Velocidad: ×{multiplier:.2f}", True, (255, 255, 255))
+      multiplier_text = self.small_font.render(f"Velocidad: Ã{multiplier:.2f}", True, (255, 255, 255))
       self.screen.blit(multiplier_text, (text_x, weather_y + 20))
     
       if is_transitioning:
-        progress_text = self.small_font.render(f"Transición: {transition_progress*100:.0f}%", True, (255, 255, 150))
+        progress_text = self.small_font.render(f"TransiciÃ³n: {transition_progress*100:.0f}%", True, (255, 255, 150))
         self.screen.blit(progress_text, (text_x, weather_y + 40))
       else:
         time_text = self.small_font.render(f"Cambia en: {time_remaining:.0f}s", True, (255, 255, 255))
@@ -619,7 +633,7 @@ class View_game:
      elif condition == "cold":
         self._draw_cold_effect(intensity,is_transitioning)
 
-# MÉTODOS CON COLORES MUY CONTRASTANTES:
+# MÃTODOS CON COLORES MUY CONTRASTANTES:
 
     def _draw_sun_effect(self, intensity,is_transitioning):
     # Brillo constante del sol
@@ -735,7 +749,7 @@ class View_game:
      for i in range(int(12 * intensity)):
         x = (pygame.time.get_ticks() // 4 + i * 50) % self.screen.get_width()
         y = (pygame.time.get_ticks() // 12 + i * 15) % self.screen.get_height()
-        # VERDE NEÓN muy visible
+        # VERDE NEÃN muy visible
         offset = int(8 * intensity)
         pygame.draw.line(self.screen, (0, 255, 0), 
                         (x, y), (x - offset, y + 3), 2)
@@ -755,7 +769,7 @@ class View_game:
      heat_surface.fill(heat_color)
      self.screen.blit(heat_surface, (0, 0))
     
-    # Ondas de calor (efecto de distorsión visual)
+    # Ondas de calor (efecto de distorsiÃ³n visual)
      if pygame.time.get_ticks() % 1800 < 150:
         wave_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         wave_color = (255, 100, 0, int(80 * intensity))
@@ -897,7 +911,7 @@ class View_game:
         score_manager = getattr(self.engine, "score_manager", None)
 
         if keys[pygame.K_e] and job is not None:
-            if job not in self.engine.courier.inventory.items:  # aún no tomado
+            if job not in self.engine.courier.inventory.items:  # aÃºn no tomado
                 if self.engine.courier.pick_job(job):
                     x,y = job.dropoff 
                     self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
@@ -914,6 +928,7 @@ class View_game:
                 self.play_Sound("remove",0)
                 if score_manager is not None:
                     score_manager.register_cancellation(job)
+                courier_ref.adjust_reputation(-4)  # Penaliza reputaciÃ³n por cancelaciÃ³n (-4 en la rÃºbrica)
 
         if keys[pygame.K_r] and job is not None:
             if job in courier_ref.inventory.items:
@@ -962,7 +977,7 @@ class View_game:
         )
         self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 
-        # Botón Inventario
+        # BotÃ³n Inventario
         self.inv_button = pygame.Rect(w - 710, h - HUD_HEIGHT +80, 100, 30)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
 
@@ -1001,7 +1016,7 @@ class View_game:
         btn_text = self.font.render("Inventario", True, (255, 255, 255))
         self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
 
-        # Barra de stamina (energía)
+        # Barra de stamina (energÃ­a)
         courier = self.engine.courier
         stamina_pct = courier.get_stamina_percentage()
         stamina_actual = int(courier.stamina)
@@ -1011,12 +1026,12 @@ class View_game:
         bar_height = HUD_HEIGHT - 20
         bar_width = 20
         bar_x = 10
-        bar_y = h - HUD_HEIGHT - bar_height - 10  #  está justo encima del HUD
+        bar_y = h - HUD_HEIGHT - bar_height - 10  #  estÃ¡ justo encima del HUD
 
         # Fondo de la barra
         pygame.draw.rect(self.screen, (80, 80, 80), (bar_x, bar_y, bar_width, bar_height), border_radius=4)
 
-        # Color según estado
+        # Color segÃºn estado
         if stamina_state == "Normal":
             color = (0, 200, 0)
         elif stamina_state == "Cansado":
@@ -1029,10 +1044,10 @@ class View_game:
         fill_y = bar_y + (bar_height - fill_height)
         pygame.draw.rect(self.screen, color, (bar_x, fill_y, bar_width, fill_height), border_radius=4)
 
-        # Texto: número y estado
+        # Texto: nÃºmero y estado
         text_x = bar_x + 30
         text_y = bar_y + bar_height // 2 - 10
-        stamina_text = self.small_font.render(f"Energía: {stamina_actual}/{stamina_max}", True, (255, 255, 255))
+        stamina_text = self.small_font.render(f"EnergÃ­a: {stamina_actual}/{stamina_max}", True, (255, 255, 255))
         state_text = self.small_font.render(f"Estado: {stamina_state}", True, (255, 255, 255))
         self.screen.blit(stamina_text, (text_x, text_y))
         self.screen.blit(state_text, (text_x, text_y + 20))
@@ -1079,5 +1094,6 @@ class View_game:
                )
                self.screen.blit(txt, (inv_rect.x + 10, inv_rect.y + 80 + i*30))
        else:
-           empty = self.font.render("Vacío", True, (200, 200, 200))
+           empty = self.font.render("VacÃ­o", True, (200, 200, 200))
            self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
+
