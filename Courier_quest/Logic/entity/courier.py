@@ -1,5 +1,6 @@
 # src/models/courier.py
 
+import time
 from typing import Tuple, List
 from Logic.entity.job import Job
 from Logic.entity.inventory import Inventory
@@ -18,7 +19,12 @@ class Courier:
         self.current_load: float = 0.0
         self.inventory: Inventory = Inventory(max_weight)
         self.delivered_jobs: List[Job] = []
+        self.total_earned: float = 0.0
         self.exhausted_lock: bool = False # Bloqueo por agotamiento
+        self.weather = "clear"  # valor inicial por defecto
+        self.reputation = 70  # valor inicial
+        self.reputation_streak = 0  # para rachas sin penalización
+        self.first_late_penalty_reduced = False  # control de tardanza reducida
 
         # Resistencia
         self.stamina_max: float = 100.0
@@ -35,14 +41,54 @@ class Courier:
             self.current_load = self.inventory.total_weight()
         return added
 
-    def deliver_job(self, job: Job) -> bool:
-        """Intenta entregar un pedido"""
-        removed = self.inventory.remove_job(job)
-        if removed:
-            self.delivered_jobs.append(job)
-            self.current_load = self.inventory.total_weight()
-            self.recover_stamina(10.0)  # Recupera energía al entregar
-        return removed
+    def deliver_job(self, job: Job) -> dict:
+        """Registra la entrega y devuelve datos utiles para puntaje."""
+        now = time.time()
+        deadline_ts = job.get_deadline_timestamp()
+        delta = None if deadline_ts is None else deadline_ts - now
+        lateness_seconds = 0.0 if delta is None or delta >= 0 else -delta
+
+        total_duration = job.get_total_duration()
+        if total_duration <= 0:
+            total_duration = 1.0
+
+        reputation_before = self.reputation
+
+        if delta is None:
+            self.adjust_reputation(+3)
+        elif delta >= total_duration * 0.2:
+            self.adjust_reputation(+5)
+        elif delta >= 0:
+            self.adjust_reputation(+3)
+        elif lateness_seconds <= 30:
+            self.adjust_reputation(-2)
+        elif lateness_seconds <= 120:
+            self.adjust_reputation(-5)
+        else:
+            self.adjust_reputation(-10)
+
+        base_payout = job.payout
+        bonus_multiplier = 1.0
+        payout = base_payout
+        if self.reputation >= 90:
+            bonus_multiplier = 1.05
+            payout *= bonus_multiplier
+
+        self.total_earned += payout
+        self.inventory.remove_job(job)
+        self.delivered_jobs.append(job)
+        self.current_load = self.inventory.total_weight()
+
+        reputation_delta = self.reputation - reputation_before
+
+        return {
+            "payout_applied": payout,
+            "base_payout": base_payout,
+            "bonus_multiplier": bonus_multiplier,
+            "lateness_seconds": lateness_seconds,
+            "reputation_delta": reputation_delta,
+            "was_late": lateness_seconds > 0,
+        }
 
     def move_courier(self, width, height, citymap, dx: int, dy: int):
         """Verifica si puede moverse y actualiza posición"""
@@ -117,3 +163,17 @@ class Courier:
 
     def is_stationary(self, previous_pos: Tuple[int, int]) -> bool:
         return self.position == previous_pos
+    
+    def adjust_reputation(self, delta: int):
+        self.reputation = max(0, min(100, self.reputation + delta))
+
+        if self.reputation < 20:
+            self.trigger_defeat("Reputación crítica")
+
+        if delta < 0:
+            self.reputation_streak = 0
+        else:
+            self.reputation_streak += 1
+            if self.reputation_streak == 3:
+                self.adjust_reputation(+2)
+                self.reputation_streak = 0

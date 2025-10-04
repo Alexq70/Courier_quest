@@ -1,4 +1,6 @@
 import sys
+import math
+import time
 from pathlib import Path
 from Logic.entity.job import Job
 
@@ -6,9 +8,10 @@ import pygame
 from Presentation.controller_game import controller_game
 from Logic.entity.courier import Courier
 from Logic.entity import courier
+from Data.score_repository import ScoreRepository
 
-CELL_SIZE = 20
-HUD_HEIGHT = 80
+CELL_SIZE = 22
+HUD_HEIGHT = 75
 FPS = 60
 prev = ''
 
@@ -21,6 +24,7 @@ class View_game:
         pygame.mixer.init
         self.engine = controller_game()
         self.engine.start()
+        self.score_repository = ScoreRepository()
 
         # Dimensiones de pantalla
         width = self.engine.city_map.width * CELL_SIZE
@@ -73,6 +77,10 @@ class View_game:
         self.elapsed_time = 0.0
         self.goal = self.engine.city_map.goal
         self.earned = 0.0
+        self.state = "running"
+        self.final_stats = None
+        self.session_duration = 15 * 60
+        self.remaining_time = float(self.session_duration)
 
         
         self.current_weather_display = ""
@@ -185,15 +193,22 @@ class View_game:
         sound.stop()
 
     def run(self):
-        """Bucle principal: eventos, actualización y dibujo."""
+        """Bucle principal: eventos, actualizacion y dibujo."""
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0
-            self.elapsed_time += dt
-            self.engine.update()
             self._handle_events()
-            self._update(dt)
-            self._draw()
-            self._draw_inventory()
+            if self.state == "running":
+                self.elapsed_time += dt
+                self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
+                if self.remaining_time <= 0.0:
+                    self._finish_game(reason="time_up")
+            if self.state == "running":
+                self.engine.update()
+                self._update(dt)
+                self._draw()
+                self._draw_inventory()
+            else:
+                self._draw_end_screen()
             pygame.display.flip()
 
         pygame.quit()
@@ -202,18 +217,179 @@ class View_game:
     def _handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                self.running = False   
-            elif event.type == pygame.KEYDOWN:  # aquí detectamos teclas
-               if event.key == pygame.K_i:
-                   self.show_inventory = not getattr(self, "show_inventory", False)
-                # Si inventario está abierto, revisar teclas de ordenamiento
-               if getattr(self, "show_inventory", False):
-                   if event.key == pygame.K_1:
-                       self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
-                   elif event.key == pygame.K_2:
-                       self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if self.state == "running":
+                        self._finish_game(reason="manual")
+                    else:
+                        self.running = False
+                    continue
 
+                if self.state == "finished":
+                    if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                        self.running = False
+                    continue
 
+                if event.key == pygame.K_i:
+                    self.show_inventory = not getattr(self, "show_inventory", False)
+
+                if getattr(self, "show_inventory", False):
+                    if event.key == pygame.K_1:
+                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
+                    elif event.key == pygame.K_2:
+                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
+
+    def _finish_game(self, reason="manual"):
+        if self.state != "running":
+            return
+        courier = self.engine.courier
+        self.elapsed_time = min(self.elapsed_time, float(self.session_duration))
+        self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
+        earned_total = getattr(courier, "total_earned", self.earned)
+        self.earned = earned_total
+        self.state = "finished"
+
+        delivered_count = len(getattr(courier, "delivered_jobs", []))
+        reputation_value = getattr(courier, "reputation", 0)
+
+        self.final_stats = {
+            "time_spent": self.elapsed_time,
+            "time_left": self.remaining_time,
+            "earned": earned_total,
+            "goal": self.goal,
+            "reputation": reputation_value,
+            "delivered": delivered_count,
+            "reason": reason,
+        }
+
+        score_manager = getattr(self.engine, "score_manager", None)
+        if score_manager is not None:
+            breakdown = score_manager.finalize(self.remaining_time, self.session_duration)
+            score_data = breakdown.as_dict()
+            self.final_stats["score"] = score_data
+            self._store_score_record(score_data, reputation_value, delivered_count, reason)
+
+        if pygame.mixer.get_init():
+            pygame.mixer.music.fadeout(500)
+        pygame.display.set_caption("Courier Quest - Resultado")
+
+    def _store_score_record(self, score_data: dict, reputation_value: float, delivered_count: int, reason: str) -> None:
+        repository = getattr(self, "score_repository", None)
+        if repository is None:
+            return
+        try:
+            record = {
+                "total_points": float(score_data.get("total_points", 0.0)),
+                "base_income": float(score_data.get("base_income", 0.0)),
+                "penalties": float(score_data.get("penalty_total", 0.0)),
+                "time_bonus": float(score_data.get("time_bonus", 0.0)),
+                "earned": float(self.earned),
+                "goal": float(self.goal),
+                "reputation": float(reputation_value),
+                "delivered": int(delivered_count),
+                "time_spent": float(self.elapsed_time),
+                "time_left": float(self.remaining_time),
+                "finished_at": float(time.time()),
+                "reason": reason,
+            }
+            repository.append(record)
+        except Exception as exc:
+            print(f"[Score] No se pudo guardar puntaje: {exc}")
+
+    def _draw_end_screen(self):
+        self.screen.fill((15, 15, 40))
+        width, height = self.screen.get_size()
+        box_width = int(width * 0.8)
+        box_height = int(height * 0.6)
+        panel = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        panel.fill((0, 0, 0, 190))
+        panel_rect = panel.get_rect(center=(width // 2, height // 2))
+        self.screen.blit(panel, panel_rect)
+
+        stats = self.final_stats or {}
+        goal_value = stats.get("goal", 0.0) or 0.0
+        earned_value = stats.get("earned", 0.0) or 0.0
+        time_spent = stats.get("time_spent", stats.get("time", 0.0))
+        time_left = stats.get("time_left", 0.0)
+        reason_label = self._get_finish_reason_text(stats.get("reason"))
+        score_data = stats.get("score", {})
+
+        try:
+            goal_value = float(goal_value)
+        except (TypeError, ValueError):
+            goal_value = 0.0
+        try:
+            earned_value = float(earned_value)
+        except (TypeError, ValueError):
+            earned_value = 0.0
+        try:
+            time_spent = float(time_spent)
+        except (TypeError, ValueError):
+            time_spent = 0.0
+        try:
+            time_left = float(time_left)
+        except (TypeError, ValueError):
+            time_left = 0.0
+        try:
+            total_points = float(score_data.get("total_points", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            total_points = 0.0
+        try:
+            time_bonus_value = float(score_data.get("time_bonus", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            time_bonus_value = 0.0
+        try:
+            penalty_value = float(score_data.get("penalty_total", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            penalty_value = 0.0
+
+        title = self.font.render("Partida finalizada", True, (255, 255, 255))
+        self.screen.blit(title, (panel_rect.x + 30, panel_rect.y + 40))
+
+        lines = [
+            f"Tiempo usado: {self._format_time(time_spent)}",
+            f"Tiempo restante: {self._format_time(time_left)}",
+            f"Puntos: {total_points:.0f}",
+            f"Bono tiempo: +{time_bonus_value:.0f}",
+            f"Penalizaciones: -{penalty_value:.0f}",
+            f"Ingresos: {earned_value:.0f} / {goal_value:.0f}",
+            f"Reputacion: {stats.get('reputation', 0)}",
+            f"Entregas completadas: {stats.get('delivered', 0)}",
+            f"Motivo: {reason_label}",
+        ]
+
+        content_font = self.small_font
+        content_color = (220, 220, 220)
+        base_y = panel_rect.y + 110
+        line_spacing = 26
+
+        for idx, message in enumerate(lines):
+            line_surface = content_font.render(message, True, content_color)
+            self.screen.blit(line_surface, (panel_rect.x + 30, base_y + idx * line_spacing))
+
+        instruction = content_font.render("Presiona Enter o Esc para salir", True, (200, 200, 200))
+        instruction_y = panel_rect.y + box_height - 40
+        self.screen.blit(instruction, (panel_rect.x + 30, instruction_y))
+
+    def _format_time(self, seconds: float) -> str:
+        try:
+            value = float(seconds)
+        except (TypeError, ValueError):
+            value = 0.0
+        value = max(0.0, value)
+        minutes = int(value) // 60
+        secs = int(value) % 60
+        return f"{minutes:02d}:{secs:02d}"
+
+    def _get_finish_reason_text(self, reason: str) -> str:
+        if not reason:
+            return "Desconocido"
+        mapping = {
+            "time_up": "Fin de jornada",
+            "manual": "Finalizado por jugador",
+        }
+        return mapping.get(str(reason), str(reason))
 
     def _move_courier(self, dx, dy):
         self.engine.move_courier(dx, dy)
@@ -265,7 +441,116 @@ class View_game:
         self._draw_jobs()
         self._draw_courier()
         self._draw_hud()
+        self._draw_reputation()
+        self._draw_score()
         self._draw_weather_info()  
+
+
+    def _draw_reputation(self):
+        courier = self.engine.courier
+        reputation = int(getattr(courier, "reputation", 0))
+        max_reputation = 100
+        star_count = 5
+        star_size = 24
+        star_spacing = 6
+        padding = 8
+        box_height = star_size + padding * 2
+        stars_width = star_count * star_size + (star_count - 1) * star_spacing
+        text_block_width = 110
+        box_width = padding * 2 + stars_width + 10 + text_block_width
+
+        overlay = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        top_left_x = 10
+        top_left_y = 10
+        self.screen.blit(overlay, (top_left_x, top_left_y))
+
+        star_value = (reputation / max_reputation) * star_count if max_reputation else 0
+        center_y = top_left_y + padding + star_size / 2
+        star_origin_x = top_left_x + padding
+
+        for index in range(star_count):
+            center_x = star_origin_x + index * (star_size + star_spacing) + star_size / 2
+            points = self._get_star_points(center_x, center_y, star_size / 2)
+
+            pygame.draw.polygon(self.screen, (70, 70, 70), points)
+            pygame.draw.polygon(self.screen, (20, 20, 20), points, width=2)
+
+            fill_amount = max(0.0, min(1.0, star_value - index))
+            if fill_amount > 0:
+                clip_rect = pygame.Rect(
+                    int(center_x - star_size / 2),
+                    int(center_y - star_size / 2),
+                    int(star_size * fill_amount),
+                    int(star_size),
+                )
+                previous_clip = self.screen.get_clip()
+                self.screen.set_clip(clip_rect)
+                pygame.draw.polygon(self.screen, (255, 215, 0), points)
+                self.screen.set_clip(previous_clip)
+
+        text_x = star_origin_x + stars_width + 10
+        label_surface = self.small_font.render("Reputacion", True, (200, 200, 200))
+        self.screen.blit(label_surface, (text_x, top_left_y + 2))
+        ratio_y = top_left_y + padding + 8
+        ratio_text = self.small_font.render(f"{reputation:02d} / {max_reputation}", True, (255, 255, 255))
+        self.screen.blit(ratio_text, (text_x, ratio_y))
+
+        status_surface = None
+        status_y = ratio_y + 18
+        if reputation >= 90:
+            status_surface = self.small_font.render("Bonus +5%", True, (255, 215, 0))
+        elif reputation < 20:
+            status_surface = self.small_font.render("Critico <20", True, (255, 80, 80))
+        elif reputation < 40:
+            status_surface = self.small_font.render("Riesgo", True, (255, 160, 60))
+
+        if status_surface is not None:
+            self.screen.blit(status_surface, (text_x, status_y))
+
+    def _draw_score(self):
+        score_manager = getattr(self.engine, "score_manager", None)
+        if not score_manager:
+            return
+
+        breakdown = score_manager.get_breakdown()
+        total_points = int(round(breakdown.total_points))
+        score_text = self.small_font.render(f"Puntos: {total_points}", True, (255, 255, 255))
+
+        padding = 8
+        circle_radius = 6
+        width = score_text.get_width() + padding * 2 + circle_radius * 2 + 8
+        height = max(score_text.get_height() + padding * 2, circle_radius * 2 + padding)
+
+        overlay = pygame.Surface((width, height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+
+        screen_width = self.screen.get_width()
+        target_x = screen_width // 2 + 60
+        weather_left = screen_width - 210
+        max_x = max(10, weather_left - width - 10)
+        top_x = min(target_x, max_x)
+        top_x = max(10, top_x)
+        top_y = 10
+        self.screen.blit(overlay, (top_x, top_y))
+
+        circle_center = (top_x + padding + circle_radius, top_y + height // 2)
+        pygame.draw.circle(self.screen, (255, 215, 0), circle_center, circle_radius)
+
+        text_x = circle_center[0] + circle_radius + 6
+        text_y = top_y + (height - score_text.get_height()) // 2
+        self.screen.blit(score_text, (text_x, text_y))
+
+
+    def _get_star_points(self, center_x, center_y, outer_radius, inner_ratio=0.5):
+        points = []
+        for i in range(10):
+            angle = math.pi / 5 * i - math.pi / 2
+            radius = outer_radius if i % 2 == 0 else outer_radius * inner_ratio
+            x = center_x + math.cos(angle) * radius
+            y = center_y + math.sin(angle) * radius
+            points.append((int(round(x)), int(round(y))))
+        return points
 
     def _draw_weather_info(self):
       weather_info = self.engine.get_current_weather_info()
@@ -603,14 +888,11 @@ class View_game:
 
 
     def _update_job(self, job: Job):
-        """
-        Maneja interacciones con un job cercano usando teclas:
-        - E: tomar el job (pickup → inventario).
-        - Q: cancelar job (solo si aún no está tomado).
-        - R: entregar job (solo si está en inventario y en dropoff).
-        """
+        """Gestiona aceptacion, cancelacion y entrega del pedido cercano."""
         keys = pygame.key.get_pressed()
-        # Tomar job
+        courier_ref = self.engine.courier
+        score_manager = getattr(self.engine, "score_manager", None)
+
         if keys[pygame.K_e] and job is not None:
             if job not in self.engine.courier.inventory.items:  # aún no tomado
                 if self.engine.courier.pick_job(job):
@@ -622,9 +904,18 @@ class View_game:
                    self.play_Sound("error",0)
                     
                    
+            if job not in courier_ref.inventory.items:
+                if courier_ref.pick_job(job):
+                    x, y = job.dropoff
+                    self.prev = self.engine.city_map.tiles[y][x]
+                    if job in self.engine.jobs:
+                        self.engine.jobs.remove(job)
+                    self.play_Sound("catch")
+                else:
+                    self.play_Sound("error")
 
         if keys[pygame.K_q] and job is not None:
-            if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
+            if job not in courier_ref.inventory.items and job in self.engine.jobs:
                 self.engine.jobs.remove(job)
                 self.play_Sound("remove",0)
 
@@ -638,6 +929,25 @@ class View_game:
                 if job in self.engine.game_service.courier.inventory.items and job is not None:
                    self.play_Sound("error",0)
 
+=======
+                self.play_Sound("remove")
+                if score_manager is not None:
+                    score_manager.register_cancellation(job)
+
+        if keys[pygame.K_r] and job is not None:
+            if job in courier_ref.inventory.items:
+                next_job = courier_ref.inventory.peek_next()
+                if next_job == job:
+                    self.engine.set_last_job(job)
+                    self.play_Sound("acept")
+                    delivery_result = courier_ref.deliver_job(job)
+                    if score_manager is not None:
+                        score_manager.register_delivery(job, delivery_result)
+                    earned_delta = float(delivery_result.get("payout_applied", getattr(job, "payout", 0.0)))
+                    self.earned += earned_delta
+                else:
+                    self.play_Sound("error")
+>>>>>>> main
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
@@ -662,9 +972,8 @@ class View_game:
         pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
 
         # Tiempo
-        time_surf = self.font.render(
-            f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
-        )
+        remaining_text = f"Tiempo restante: {self._format_time(self.remaining_time)}"
+        time_surf = self.font.render(remaining_text, True, (255, 255, 255))
         self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
 
         # Ingresos
@@ -701,6 +1010,10 @@ class View_game:
             f"Inventario:   i    (cambiar 1 - 2)", True, (200, 200, 50),
         )
         self.screen.blit(inventario, (w - 300, h - HUD_HEIGHT + 105))
+        salir = self.font.render(
+            f'Finalizar:   Esc', True, (200, 200, 50)
+        )
+        self.screen.blit(salir, (w - 300, h - HUD_HEIGHT + 125))
         
         self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)

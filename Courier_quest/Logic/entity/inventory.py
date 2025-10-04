@@ -15,6 +15,10 @@ class Inventory:
         self.items: List[Job] = []
         self._heap = []  # heap de prioridad para los jobs
 
+    def _deadline_key(self, job: Job) -> float:
+        deadline_ts = job.get_deadline_timestamp() if hasattr(job, "get_deadline_timestamp") else None
+        return deadline_ts if deadline_ts is not None else float("inf")
+
     def total_weight(self) -> float:
         return sum(job.weight for job in self.items)
 
@@ -25,7 +29,7 @@ class Inventory:
         if self.can_add(job):
             self.items.append(job)
             # insertamos en el heap con prioridad por defecto (priority > deadline)
-            heapq.heappush(self._heap, (-job.priority, job.deadline, job))
+            heapq.heappush(self._heap, (-job.priority, self._deadline_key(job), job))
             return True
         return False
 
@@ -52,10 +56,10 @@ class Inventory:
 
         if by == "priority":
             for job in self.items:
-                heapq.heappush(heap, (-job.priority, job.deadline, job))
+                heapq.heappush(heap, (-job.priority, self._deadline_key(job), job))
         elif by == "deadline":
             for job in self.items:
-                heapq.heappush(heap, (job.deadline, -job.priority, job))
+                heapq.heappush(heap, (self._deadline_key(job), -job.priority, job))
         else:
             raise ValueError("El parámetro 'by' debe ser 'priority' o 'deadline'.")
 
