@@ -41,14 +41,18 @@ class Courier:
             self.current_load = self.inventory.total_weight()
         return added
 
-    def deliver_job(self, job: Job) -> None:
+    def deliver_job(self, job: Job) -> dict:
+        """Registra la entrega y devuelve datos utiles para puntaje."""
         now = time.time()
         deadline_ts = job.get_deadline_timestamp()
         delta = None if deadline_ts is None else deadline_ts - now
+        lateness_seconds = 0.0 if delta is None or delta >= 0 else -delta
 
         total_duration = job.get_total_duration()
         if total_duration <= 0:
             total_duration = 1.0
+
+        reputation_before = self.reputation
 
         if delta is None:
             self.adjust_reputation(+3)
@@ -56,21 +60,35 @@ class Courier:
             self.adjust_reputation(+5)
         elif delta >= 0:
             self.adjust_reputation(+3)
-        elif -delta <= 30:
+        elif lateness_seconds <= 30:
             self.adjust_reputation(-2)
-        elif -delta <= 120:
+        elif lateness_seconds <= 120:
             self.adjust_reputation(-5)
         else:
             self.adjust_reputation(-10)
 
-        payout = job.payout
+        base_payout = job.payout
+        bonus_multiplier = 1.0
+        payout = base_payout
         if self.reputation >= 90:
-            payout *= 1.05
+            bonus_multiplier = 1.05
+            payout *= bonus_multiplier
 
         self.total_earned += payout
         self.inventory.remove_job(job)
         self.delivered_jobs.append(job)
         self.current_load = self.inventory.total_weight()
+
+        reputation_delta = self.reputation - reputation_before
+
+        return {
+            "payout_applied": payout,
+            "base_payout": base_payout,
+            "bonus_multiplier": bonus_multiplier,
+            "lateness_seconds": lateness_seconds,
+            "reputation_delta": reputation_delta,
+            "was_late": lateness_seconds > 0,
+        }
 
     def move_courier(self, width, height, citymap, dx: int, dy: int):
         """Verifica si puede moverse y actualiza posición"""

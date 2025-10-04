@@ -5,6 +5,7 @@ from Logic.entity.job import Job
 from Logic.entity.weather_burst import WeatherBurst
 from Logic.entity.courier import Courier
 from Logic.weather_simulator import WeatherSimulator  
+from Logic.score_manager import ScoreManager
 import time
 import json
 
@@ -24,6 +25,7 @@ class controller_game:
         self.weather_simulator = None  # Nuevo atributo
         self.last_weather_update = 0
         self.weather_update_interval = 0.1  # Actualizar clima cada 100ms
+        self.score_manager = ScoreManager()
         
     def _deep_unwrap(self, resp: dict) -> dict:
         """

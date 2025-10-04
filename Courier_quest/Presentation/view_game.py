@@ -1,5 +1,6 @@
 import sys
 import math
+import time
 from pathlib import Path
 from Logic.entity.job import Job
 
@@ -7,6 +8,7 @@ import pygame
 from Presentation.controller_game import controller_game
 from Logic.entity.courier import Courier
 from Logic.entity import courier
+from Data.score_repository import ScoreRepository
 
 CELL_SIZE = 22
 HUD_HEIGHT = 75
@@ -22,6 +24,7 @@ class View_game:
         pygame.mixer.init
         self.engine = controller_game()
         self.engine.start()
+        self.score_repository = ScoreRepository()
 
         # Dimensiones de pantalla
         width = self.engine.city_map.width * CELL_SIZE
@@ -238,24 +241,59 @@ class View_game:
         earned_total = getattr(courier, "total_earned", self.earned)
         self.earned = earned_total
         self.state = "finished"
+
+        delivered_count = len(getattr(courier, "delivered_jobs", []))
+        reputation_value = getattr(courier, "reputation", 0)
+
         self.final_stats = {
             "time_spent": self.elapsed_time,
             "time_left": self.remaining_time,
             "earned": earned_total,
             "goal": self.goal,
-            "reputation": getattr(courier, "reputation", 0),
-            "delivered": len(getattr(courier, "delivered_jobs", [])),
+            "reputation": reputation_value,
+            "delivered": delivered_count,
             "reason": reason,
         }
+
+        score_manager = getattr(self.engine, "score_manager", None)
+        if score_manager is not None:
+            breakdown = score_manager.finalize(self.remaining_time, self.session_duration)
+            score_data = breakdown.as_dict()
+            self.final_stats["score"] = score_data
+            self._store_score_record(score_data, reputation_value, delivered_count, reason)
+
         if pygame.mixer.get_init():
             pygame.mixer.music.fadeout(500)
         pygame.display.set_caption("Courier Quest - Resultado")
 
+    def _store_score_record(self, score_data: dict, reputation_value: float, delivered_count: int, reason: str) -> None:
+        repository = getattr(self, "score_repository", None)
+        if repository is None:
+            return
+        try:
+            record = {
+                "total_points": float(score_data.get("total_points", 0.0)),
+                "base_income": float(score_data.get("base_income", 0.0)),
+                "penalties": float(score_data.get("penalty_total", 0.0)),
+                "time_bonus": float(score_data.get("time_bonus", 0.0)),
+                "earned": float(self.earned),
+                "goal": float(self.goal),
+                "reputation": float(reputation_value),
+                "delivered": int(delivered_count),
+                "time_spent": float(self.elapsed_time),
+                "time_left": float(self.remaining_time),
+                "finished_at": float(time.time()),
+                "reason": reason,
+            }
+            repository.append(record)
+        except Exception as exc:
+            print(f"[Score] No se pudo guardar puntaje: {exc}")
+
     def _draw_end_screen(self):
         self.screen.fill((15, 15, 40))
         width, height = self.screen.get_size()
-        box_width = int(width * 0.7)
-        box_height = int(height * 0.5)
+        box_width = int(width * 0.8)
+        box_height = int(height * 0.6)
         panel = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
         panel.fill((0, 0, 0, 190))
         panel_rect = panel.get_rect(center=(width // 2, height // 2))
@@ -267,6 +305,7 @@ class View_game:
         time_spent = stats.get("time_spent", stats.get("time", 0.0))
         time_left = stats.get("time_left", 0.0)
         reason_label = self._get_finish_reason_text(stats.get("reason"))
+        score_data = stats.get("score", {})
 
         try:
             goal_value = float(goal_value)
@@ -284,6 +323,18 @@ class View_game:
             time_left = float(time_left)
         except (TypeError, ValueError):
             time_left = 0.0
+        try:
+            total_points = float(score_data.get("total_points", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            total_points = 0.0
+        try:
+            time_bonus_value = float(score_data.get("time_bonus", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            time_bonus_value = 0.0
+        try:
+            penalty_value = float(score_data.get("penalty_total", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            penalty_value = 0.0
 
         title = self.font.render("Partida finalizada", True, (255, 255, 255))
         self.screen.blit(title, (panel_rect.x + 30, panel_rect.y + 40))
@@ -291,18 +342,27 @@ class View_game:
         lines = [
             f"Tiempo usado: {self._format_time(time_spent)}",
             f"Tiempo restante: {self._format_time(time_left)}",
+            f"Puntos: {total_points:.0f}",
+            f"Bono tiempo: +{time_bonus_value:.0f}",
+            f"Penalizaciones: -{penalty_value:.0f}",
             f"Ingresos: {earned_value:.0f} / {goal_value:.0f}",
             f"Reputacion: {stats.get('reputation', 0)}",
             f"Entregas completadas: {stats.get('delivered', 0)}",
             f"Motivo: {reason_label}",
         ]
 
-        for idx, message in enumerate(lines):
-            line_surface = self.font.render(message, True, (220, 220, 220))
-            self.screen.blit(line_surface, (panel_rect.x + 30, panel_rect.y + 110 + idx * 30))
+        content_font = self.small_font
+        content_color = (220, 220, 220)
+        base_y = panel_rect.y + 110
+        line_spacing = 26
 
-        instruction = self.small_font.render("Presiona Enter o Esc para salir", True, (200, 200, 200))
-        self.screen.blit(instruction, (panel_rect.x + 30, panel_rect.y + box_height - 50))
+        for idx, message in enumerate(lines):
+            line_surface = content_font.render(message, True, content_color)
+            self.screen.blit(line_surface, (panel_rect.x + 30, base_y + idx * line_spacing))
+
+        instruction = content_font.render("Presiona Enter o Esc para salir", True, (200, 200, 200))
+        instruction_y = panel_rect.y + box_height - 40
+        self.screen.blit(instruction, (panel_rect.x + 30, instruction_y))
 
     def _format_time(self, seconds: float) -> str:
         try:
@@ -373,6 +433,7 @@ class View_game:
         self._draw_courier()
         self._draw_hud()
         self._draw_reputation()
+        self._draw_score()
         self._draw_weather_info()  
 
 
@@ -437,6 +498,40 @@ class View_game:
 
         if status_surface is not None:
             self.screen.blit(status_surface, (text_x, status_y))
+
+    def _draw_score(self):
+        score_manager = getattr(self.engine, "score_manager", None)
+        if not score_manager:
+            return
+
+        breakdown = score_manager.get_breakdown()
+        total_points = int(round(breakdown.total_points))
+        score_text = self.small_font.render(f"Puntos: {total_points}", True, (255, 255, 255))
+
+        padding = 8
+        circle_radius = 6
+        width = score_text.get_width() + padding * 2 + circle_radius * 2 + 8
+        height = max(score_text.get_height() + padding * 2, circle_radius * 2 + padding)
+
+        overlay = pygame.Surface((width, height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+
+        screen_width = self.screen.get_width()
+        target_x = screen_width // 2 + 60
+        weather_left = screen_width - 210
+        max_x = max(10, weather_left - width - 10)
+        top_x = min(target_x, max_x)
+        top_x = max(10, top_x)
+        top_y = 10
+        self.screen.blit(overlay, (top_x, top_y))
+
+        circle_center = (top_x + padding + circle_radius, top_y + height // 2)
+        pygame.draw.circle(self.screen, (255, 215, 0), circle_center, circle_radius)
+
+        text_x = circle_center[0] + circle_radius + 6
+        text_y = top_y + (height - score_text.get_height()) // 2
+        self.screen.blit(score_text, (text_x, text_y))
+
 
     def _get_star_points(self, center_x, center_y, outer_radius, inner_ratio=0.5):
         points = []
@@ -736,42 +831,42 @@ class View_game:
 
 
     def _update_job(self, job: Job):
-        """
-        Maneja interacciones con un job cercano usando teclas:
-        - E: tomar el job (pickup → inventario).
-        - Q: cancelar job (solo si aún no está tomado).
-        - R: entregar job (solo si está en inventario y en dropoff).
-        """
+        """Gestiona aceptacion, cancelacion y entrega del pedido cercano."""
         keys = pygame.key.get_pressed()
-        # Tomar job
+        courier_ref = self.engine.courier
+        score_manager = getattr(self.engine, "score_manager", None)
+
         if keys[pygame.K_e] and job is not None:
-            if job not in self.engine.courier.inventory.items:  # aún no tomado
-                if self.engine.courier.pick_job(job):
-                    x,y = job.dropoff 
-                    self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
-                    self.engine.jobs.remove(job)  # lo sacamos de la lista global
+            if job not in courier_ref.inventory.items:
+                if courier_ref.pick_job(job):
+                    x, y = job.dropoff
+                    self.prev = self.engine.city_map.tiles[y][x]
+                    if job in self.engine.jobs:
+                        self.engine.jobs.remove(job)
                     self.play_Sound("catch")
                 else:
-                   self.play_Sound("error")
-                    
-                   
+                    self.play_Sound("error")
 
-        # Cancelar job (solo pickups)
         if keys[pygame.K_q] and job is not None:
-            if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
+            if job not in courier_ref.inventory.items and job in self.engine.jobs:
                 self.engine.jobs.remove(job)
                 self.play_Sound("remove")
+                if score_manager is not None:
+                    score_manager.register_cancellation(job)
 
-        if keys[pygame.K_r]:
-            if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
-               self.engine.set_last_job(job)
-               self.earned += job.payout
-               self.play_Sound("acept")
-               self.engine.courier.deliver_job(job)
-            else:
-                if job in self.engine.game_service.courier.inventory.items and job is not None:
-                   self.play_Sound("error")
-
+        if keys[pygame.K_r] and job is not None:
+            if job in courier_ref.inventory.items:
+                next_job = courier_ref.inventory.peek_next()
+                if next_job == job:
+                    self.engine.set_last_job(job)
+                    self.play_Sound("acept")
+                    delivery_result = courier_ref.deliver_job(job)
+                    if score_manager is not None:
+                        score_manager.register_delivery(job, delivery_result)
+                    earned_delta = float(delivery_result.get("payout_applied", getattr(job, "payout", 0.0)))
+                    self.earned += earned_delta
+                else:
+                    self.play_Sound("error")
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
