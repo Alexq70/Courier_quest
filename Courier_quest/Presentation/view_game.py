@@ -8,8 +8,8 @@ from Presentation.controller_game import controller_game
 from Logic.entity.courier import Courier
 from Logic.entity import courier
 
-CELL_SIZE = 25
-HUD_HEIGHT = 80
+CELL_SIZE = 22
+HUD_HEIGHT = 75
 FPS = 60
 prev = ''
 
