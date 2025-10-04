@@ -118,7 +118,7 @@ class View_game:
                 if key == "base":
                    
                     pygame.mixer.music.load(str(sound_path))
-                    print(f"MÃºsica de fondo cargada: {filename}")
+                    print(f"Musica de fondo cargada: {filename}")
                 else:
                    
                     self.sounds[key] = pygame.mixer.Sound(str(sound_path))
@@ -186,6 +186,7 @@ class View_game:
     def play_Sound(self,sound_name,loop):
         if sound_name in self.sounds:
             self.sounds[sound_name].play(loop)
+            pygame.mixer.Sound.set_volume(0.5)
     
     def stop_Sound(self, sound_name):
      if hasattr(self, 'sounds') and sound_name in self.sounds:
@@ -1088,6 +1089,6 @@ class View_game:
                )
                self.screen.blit(txt, (inv_rect.x + 10, inv_rect.y + 80 + i*30))
        else:
-           empty = self.font.render("VacÃ­o", True, (200, 200, 200))
+           empty = self.font.render("Vaci­o", True, (200, 200, 200))
            self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
 
