@@ -894,7 +894,6 @@ class View_game:
         score_manager = getattr(self.engine, "score_manager", None)
 
         if keys[pygame.K_e] and job is not None:
-<<<<<<< HEAD
             if job not in self.engine.courier.inventory.items:  # aún no tomado
                 if self.engine.courier.pick_job(job):
                     x,y = job.dropoff 
@@ -905,36 +904,11 @@ class View_game:
                    self.play_Sound("error",0)
                     
                    
-=======
-            if job not in courier_ref.inventory.items:
-                if courier_ref.pick_job(job):
-                    x, y = job.dropoff
-                    self.prev = self.engine.city_map.tiles[y][x]
-                    if job in self.engine.jobs:
-                        self.engine.jobs.remove(job)
-                    self.play_Sound("catch")
-                else:
-                    self.play_Sound("error")
->>>>>>> main
 
         if keys[pygame.K_q] and job is not None:
             if job not in courier_ref.inventory.items and job in self.engine.jobs:
                 self.engine.jobs.remove(job)
-<<<<<<< HEAD
                 self.play_Sound("remove",0)
-
-        if keys[pygame.K_r]:
-            if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
-               self.engine.set_last_job(job)
-               self.earned += job.payout
-               self.play_Sound("acept",0)
-               self.engine.courier.deliver_job(job)
-            else:
-                if job in self.engine.game_service.courier.inventory.items and job is not None:
-                   self.play_Sound("error",0)
-
-=======
-                self.play_Sound("remove")
                 if score_manager is not None:
                     score_manager.register_cancellation(job)
 
@@ -943,15 +917,14 @@ class View_game:
                 next_job = courier_ref.inventory.peek_next()
                 if next_job == job:
                     self.engine.set_last_job(job)
-                    self.play_Sound("acept")
+                    self.play_Sound("acept",0)
                     delivery_result = courier_ref.deliver_job(job)
                     if score_manager is not None:
                         score_manager.register_delivery(job, delivery_result)
                     earned_delta = float(delivery_result.get("payout_applied", getattr(job, "payout", 0.0)))
                     self.earned += earned_delta
                 else:
-                    self.play_Sound("error")
->>>>>>> main
+                    self.play_Sound("error",0)
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
