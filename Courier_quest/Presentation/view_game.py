@@ -95,7 +95,10 @@ class View_game:
         "remove":"remove_item.mp3",
         "rain":"rain.mp3",
         "roar":"roar.mp3",
-        "storm":"storm"
+        "wind":"wind.mp3",
+        "heat":"heat.mp3",
+        "fog":"fog.mp3",
+        "cold":"cold.mp3"
       }
     
       self.sounds = {}
@@ -172,9 +175,14 @@ class View_game:
             print(f"Error cargando imágenes del courier: {e}")
             self.courier_images = {}
 
-    def play_Sound(self,sound_name):
+    def play_Sound(self,sound_name,loop):
         if sound_name in self.sounds:
-            self.sounds[sound_name].play()
+            self.sounds[sound_name].play(loop)
+    
+    def stop_Sound(self, sound_name):
+     if hasattr(self, 'sounds') and sound_name in self.sounds:
+        sound = self.sounds[sound_name]
+        sound.stop()
 
     def run(self):
         """Bucle principal: eventos, actualización y dibujo."""
@@ -213,7 +221,8 @@ class View_game:
     def _update(self, dt: float):
         if(self.roar==True):
             self.roar=False
-            self.play_Sound("roar")
+            self.play_Sound("roar",0)
+            
         self.move_timer += dt
         if self.move_timer >= self.move_delay:
             keys = pygame.key.get_pressed()
@@ -300,33 +309,33 @@ class View_game:
       else:
         time_text = self.small_font.render(f"Cambia en: {time_remaining:.0f}s", True, (255, 255, 255))
         self.screen.blit(time_text, (text_x, weather_y + 40))
-    
-      self._draw_weather_effects(condition, intensity)
+      self._draw_weather_effects(condition, intensity,is_transitioning)
 
-    def _draw_weather_effects(self, condition, intensity):
+    def _draw_weather_effects(self, condition, intensity,is_transitioning):
      if condition == "clear":
-        self._draw_sun_effect(intensity)
+        self._draw_sun_effect(intensity,is_transitioning)
      elif condition == "clouds":
-        self._draw_clouds_effect(intensity)
+        self._draw_clouds_effect(intensity,is_transitioning)
      elif condition == "rain_light":
-        self._draw_rain_light_effect(intensity)
+        self._draw_rain_light_effect(intensity,is_transitioning)
      elif condition == "rain":
-        self._draw_rain_effect(intensity)
+        self._draw_rain_effect(intensity,is_transitioning)
      elif condition == "storm":
-        self._draw_storm_effect(intensity)
+        self._draw_storm_effect(intensity,is_transitioning)
      elif condition == "fog":
-        self._draw_fog_effect(intensity)
+        self._draw_fog_effect(intensity,is_transitioning)
      elif condition == "wind":
-        self._draw_wind_effect(intensity)
+        self._draw_wind_effect(intensity,is_transitioning)
      elif condition == "heat":
-        self._draw_heat_effect(intensity)
+        self._draw_heat_effect(intensity,is_transitioning)
      elif condition == "cold":
-        self._draw_cold_effect(intensity)
+        self._draw_cold_effect(intensity,is_transitioning)
 
 # MÉTODOS CON COLORES MUY CONTRASTANTES:
 
-    def _draw_sun_effect(self, intensity):
+    def _draw_sun_effect(self, intensity,is_transitioning):
     # Brillo constante del sol
+     
      sun_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
      sun_color = (255, 255, 0, int(40 * intensity))  # AMARILLO BRILLANTE
      sun_surface.fill(sun_color)
@@ -339,22 +348,25 @@ class View_game:
         ray_surface.fill(ray_color)
         self.screen.blit(ray_surface, (0, 0))
 
-    def _draw_clouds_effect(self, intensity):
+    def _draw_clouds_effect(self, intensity,is_transitioning):
      cloud_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
      cloud_color = (50, 50, 50, int(80 * intensity))  # GRIS MUY OSCURO
      cloud_surface.fill(cloud_color)
      self.screen.blit(cloud_surface, (0, 0))
 
-    def _draw_rain_light_effect(self, intensity):
+    def _draw_rain_light_effect(self, intensity,is_transitioning):
+     if not hasattr(self, '_rain_ligth_played'):
+         self.play_Sound("rain",0)
+         self._rain_ligth_played=True
      for i in range(int(10 * intensity)):
         x = (pygame.time.get_ticks() // 12 + i * 55) % self.screen.get_width()
         y = (pygame.time.get_ticks() // 6 + i * 35) % self.screen.get_height()
         # AZUL ELECTRICO muy visible
         pygame.draw.line(self.screen, (0, 100, 255), (x, y), (x, y + 8), 2)
 
-    def _draw_rain_effect(self, intensity):
+    def _draw_rain_effect(self, intensity,is_transitioning):
      if not hasattr(self, '_rain_played'):
-         self.play_Sound("rain")
+         self.play_Sound("rain",0)
          self._rain_played=True
      for i in range(int(15 * intensity)):
         x = (pygame.time.get_ticks() // 8 + i * 45) % self.screen.get_width()
@@ -362,7 +374,7 @@ class View_game:
         # AZUL MARINO muy oscuro
         pygame.draw.line(self.screen, (0, 0, 180), (x, y), (x, y + 12), 2)
 
-    def _draw_storm_effect(self, intensity):
+    def _draw_storm_effect(self, intensity,is_transitioning):
      if not hasattr(self, '_last_thunder_time'):
       self._last_thunder_time = 0
 
@@ -373,11 +385,11 @@ class View_game:
       flash_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
       flash_surface.fill((255, 255, 255, int(150 * intensity)))
       self.screen.blit(flash_surface, (0, 0))
-      self.play_Sound("thunder")
+      self.play_Sound("thunder",0)
       self._last_thunder_time = current_time 
-     if not hasattr(self, '_rain_played'):
-         self.play_Sound("rain")
-         self._rain_played=True
+     if not hasattr(self, '_storm_played'):
+         self.play_Sound("storm",0)
+         self._storm_played=True
     # Lluvia muy intensa
      for i in range(int(20 * intensity)):
         x = (pygame.time.get_ticks() // 6 + i * 35) % self.screen.get_width()
@@ -395,13 +407,24 @@ class View_game:
         flash_surface.fill((255, 255, 255, int(150 * intensity)))
         self.screen.blit(flash_surface, (0, 0))
 
-    def _draw_fog_effect(self, intensity):
+    def _draw_fog_effect(self, intensity,is_transitioning):
+     if not hasattr(self, '_fog_played'):
+         self.play_Sound("fog",10)
+         self._fog_played=True
      fog_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
      fog_color = (255, 255, 255, int(120 * intensity))  # BLANCO PURO
      fog_surface.fill(fog_color)
      self.screen.blit(fog_surface, (0, 0))
 
-    def _draw_wind_effect(self, intensity):
+    def _draw_wind_effect(self, intensity,is_transitioning):
+     if is_transitioning == True and hasattr(self, '_wind_played'):
+        self.stop_Sound("wind")
+        del self._wind_played
+        return  # Salir temprano
+    
+     if is_transitioning == False and not hasattr(self, '_wind_played'):
+        self.play_Sound("wind",1)
+        self._wind_played = True
      for i in range(int(12 * intensity)):
         x = (pygame.time.get_ticks() // 4 + i * 50) % self.screen.get_width()
         y = (pygame.time.get_ticks() // 12 + i * 15) % self.screen.get_height()
@@ -410,7 +433,15 @@ class View_game:
         pygame.draw.line(self.screen, (0, 255, 0), 
                         (x, y), (x - offset, y + 3), 2)
 
-    def _draw_heat_effect(self, intensity):
+    def _draw_heat_effect(self, intensity,is_transitioning):
+     if is_transitioning == True and hasattr(self, '_heat_played'):
+        self.stop_Sound("heat",1)
+        del self._heat_played
+        return  # Salir temprano
+    
+     if is_transitioning == False and not hasattr(self, '_heat_played'):
+        self.play_Sound("heat",3)
+        self._heat_played = True
     # Brillo rojo-anaranjado constante
      heat_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
      heat_color = (255, 50, 0, int(60 * intensity))  # ROJO ANARANJADO FUERTE
@@ -424,7 +455,15 @@ class View_game:
         wave_surface.fill(wave_color)
         self.screen.blit(wave_surface, (0, 0))
 
-    def _draw_cold_effect(self, intensity):
+    def _draw_cold_effect(self, intensity,is_transitioning):
+     if is_transitioning == True and hasattr(self, '_cold_played'):
+        self.stop_Sound("cold")
+        del self._cold_played
+        return  # Salir temprano
+    
+     if is_transitioning == False and not hasattr(self, '_cold_played'):
+        self.play_Sound("cold",2)
+        self._cold_played = True
     # Brillo azul constante
      cold_surface = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
      cold_color = (100, 200, 255, int(50 * intensity))  # AZUL CIELO BRILLANTE
@@ -560,9 +599,9 @@ class View_game:
                     x,y = job.dropoff 
                     self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
                     self.engine.jobs.remove(job)  # lo sacamos de la lista global
-                    self.play_Sound("catch")
+                    self.play_Sound("catch",0)
                 else:
-                   self.play_Sound("error")
+                   self.play_Sound("error",0)
                     
                    
 
@@ -570,17 +609,17 @@ class View_game:
         if keys[pygame.K_q] and job is not None:
             if job not in self.engine.courier.inventory.items:  # solo si aún no está tomado
                 self.engine.jobs.remove(job)
-                self.play_Sound("remove")
+                self.play_Sound("remove",0)
 
         if keys[pygame.K_r]:
             if self.engine.game_service.courier.inventory.peek_next() == job and job is not None:
                self.engine.set_last_job(job)
                self.earned += job.payout
-               self.play_Sound("acept")
+               self.play_Sound("acept",0)
                self.engine.courier.deliver_job(job)
             else:
                 if job in self.engine.game_service.courier.inventory.items and job is not None:
-                   self.play_Sound("error")
+                   self.play_Sound("error",0)
 
 
     def _draw_courier(self):
