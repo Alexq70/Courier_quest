@@ -442,15 +442,9 @@ class View_game:
               self._move_courier(dx, dy,True)
               self.move_timer = 0  
 
-<<<<<<< HEAD
-              courier = self.engine.courier
-              if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
-                courier.recover_stamina(1.0)  
-=======
             courier = self.engine.courier
             if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
-                courier.recover_stamina(1.0)  # recuperaciÃ³n al estar quieto
->>>>>>> main
+                courier.recover_stamina(1.0) 
 
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""
