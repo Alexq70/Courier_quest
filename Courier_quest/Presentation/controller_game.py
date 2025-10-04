@@ -124,53 +124,40 @@ class controller_game:
         return bursts
 
     def start(self):
-        """
-        Arranca la carga del mundo y ejecuta el juego.
-        """
+        """Arranca la carga del mundo y ejecuta el juego."""
         self.load_world()
         self.game_service = GameService(self.jobs, self.weather, self.city_map, self.courier)
         print("Juego iniciado correctamente.")
 
-    def move_courier(self,dx,dy):
-        self.courier.move_courier(self.city_map.width,self.city_map.height,self.city_map,dx,dy)
-    
     def update(self):
-        """
-        Método principal de actualización del juego (llamar en cada frame)
-        """
+        """Mtodo principal de actualizacin del juego (llamar en cada frame)."""
         current_time = time.time()
-        
-        if len(self.jobs) <=0: #actualizamos los pedidos cuando ya no hay
-           if len(self.courier.inventory.items) <=0:
+
+        if len(self.jobs) <= 0 and len(self.courier.inventory.items) <= 0:
             self.refresh_jobs()
-            
-        # Actualizar clima si es tiempo
+
         if current_time - self.last_weather_update >= self.weather_update_interval:
             self._update_weather()
             self.last_weather_update = current_time
-            # Actualizar el estado del courier con la condición climática actual
             self.courier.weather = self.weather_simulator.current_condition
 
     def _update_weather(self):
-        """Actualiza el estado del clima"""
+        """Actualiza el estado del clima."""
         if not self.weather_simulator:
             return
-        
         self.weather_simulator.update()
-        
 
     def get_current_weather_info(self):
-        """Obtiene información del clima actual para la vista"""
+        """Obtiene informacin del clima actual para la vista."""
         if self.weather_simulator:
             return self.weather_simulator.get_weather_info()
         return {}
 
-    def move_courier(self, dx, dy,Del):
-        self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy,Del)
-        
-            
+    def move_courier(self, dx, dy, record_step=True):
+        self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy, record_step)
+
     def new_jobs(self):
-        
+        """Genera pedidos nuevos y actualiza la lista principal."""
         print("Cargando pedidos...")
         jobs_resp = self.api.fetch("city/jobs")
         raw_jobs = self._deep_unwrap(jobs_resp)
@@ -183,17 +170,12 @@ class controller_game:
             self.game_service.set_jobs(self.jobs)
 
     def refresh_jobs(self):
-        """
-        Carga una nueva lista de pedidos a la lista principal
-        """
+        """Carga una nueva lista de pedidos en la lista principal."""
         self.new_jobs()
 
     def get_steps(self):
-       return self.game_service.get_steps()
+        return self.game_service.get_steps()
 
-    def include_step(self,pos):
+    def include_step(self, pos):
         self.game_service.include_new_step(pos)
 
-            
-        
-            

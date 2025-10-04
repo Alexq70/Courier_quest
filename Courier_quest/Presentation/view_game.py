@@ -700,7 +700,7 @@ class View_game:
         instr_x = panel_rect.x + (panel_width - instruction.get_width()) // 2
         self.screen.blit(instruction, (instr_x, panel_rect.bottom - 40))
 
-    def _move_courier(self, dx, dy):
+    def _move_courier(self, dx, dy, record_step=True):
         self.engine.move_courier(dx, dy)
 
     def _update(self, dt: float):
@@ -1392,6 +1392,7 @@ class View_game:
        else:
            empty = self.font.render("Empty", True, (200, 200, 200))
            self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
+
 
 
 
