@@ -92,7 +92,7 @@ class View_game:
         "rain":"rain.mp3",
         "roar":"roar.mp3",
         "storm":"storm",
-        "remove":"remove.mp3",
+        "remove":"remove_item.mp3",
         "rain":"rain.mp3",
         "roar":"roar.mp3",
         "storm":"storm"
