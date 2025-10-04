@@ -1,4 +1,5 @@
 import sys
+import math
 from pathlib import Path
 from Logic.entity.job import Job
 
@@ -7,7 +8,7 @@ from Presentation.controller_game import controller_game
 from Logic.entity.courier import Courier
 from Logic.entity import courier
 
-CELL_SIZE = 20
+CELL_SIZE = 25
 HUD_HEIGHT = 80
 FPS = 60
 prev = ''
@@ -73,6 +74,10 @@ class View_game:
         self.elapsed_time = 0.0
         self.goal = self.engine.city_map.goal
         self.earned = 0.0
+        self.state = "running"
+        self.final_stats = None
+        self.session_duration = 15 * 60
+        self.remaining_time = float(self.session_duration)
 
         
         self.current_weather_display = ""
@@ -177,15 +182,22 @@ class View_game:
             self.sounds[sound_name].play()
 
     def run(self):
-        """Bucle principal: eventos, actualización y dibujo."""
+        """Bucle principal: eventos, actualizacion y dibujo."""
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0
-            self.elapsed_time += dt
-            self.engine.update()
             self._handle_events()
-            self._update(dt)
-            self._draw()
-            self._draw_inventory()
+            if self.state == "running":
+                self.elapsed_time += dt
+                self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
+                if self.remaining_time <= 0.0:
+                    self._finish_game(reason="time_up")
+            if self.state == "running":
+                self.engine.update()
+                self._update(dt)
+                self._draw()
+                self._draw_inventory()
+            else:
+                self._draw_end_screen()
             pygame.display.flip()
 
         pygame.quit()
@@ -194,18 +206,122 @@ class View_game:
     def _handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                self.running = False   
-            elif event.type == pygame.KEYDOWN:  # aquí detectamos teclas
-               if event.key == pygame.K_i:
-                   self.show_inventory = not getattr(self, "show_inventory", False)
-                # Si inventario está abierto, revisar teclas de ordenamiento
-               if getattr(self, "show_inventory", False):
-                   if event.key == pygame.K_1:
-                       self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
-                   elif event.key == pygame.K_2:
-                       self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    if self.state == "running":
+                        self._finish_game(reason="manual")
+                    else:
+                        self.running = False
+                    continue
 
+                if self.state == "finished":
+                    if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                        self.running = False
+                    continue
 
+                if event.key == pygame.K_i:
+                    self.show_inventory = not getattr(self, "show_inventory", False)
+
+                if getattr(self, "show_inventory", False):
+                    if event.key == pygame.K_1:
+                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
+                    elif event.key == pygame.K_2:
+                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
+
+    def _finish_game(self, reason="manual"):
+        if self.state != "running":
+            return
+        courier = self.engine.courier
+        self.elapsed_time = min(self.elapsed_time, float(self.session_duration))
+        self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
+        earned_total = getattr(courier, "total_earned", self.earned)
+        self.earned = earned_total
+        self.state = "finished"
+        self.final_stats = {
+            "time_spent": self.elapsed_time,
+            "time_left": self.remaining_time,
+            "earned": earned_total,
+            "goal": self.goal,
+            "reputation": getattr(courier, "reputation", 0),
+            "delivered": len(getattr(courier, "delivered_jobs", [])),
+            "reason": reason,
+        }
+        if pygame.mixer.get_init():
+            pygame.mixer.music.fadeout(500)
+        pygame.display.set_caption("Courier Quest - Resultado")
+
+    def _draw_end_screen(self):
+        self.screen.fill((15, 15, 40))
+        width, height = self.screen.get_size()
+        box_width = int(width * 0.7)
+        box_height = int(height * 0.5)
+        panel = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        panel.fill((0, 0, 0, 190))
+        panel_rect = panel.get_rect(center=(width // 2, height // 2))
+        self.screen.blit(panel, panel_rect)
+
+        stats = self.final_stats or {}
+        goal_value = stats.get("goal", 0.0) or 0.0
+        earned_value = stats.get("earned", 0.0) or 0.0
+        time_spent = stats.get("time_spent", stats.get("time", 0.0))
+        time_left = stats.get("time_left", 0.0)
+        reason_label = self._get_finish_reason_text(stats.get("reason"))
+
+        try:
+            goal_value = float(goal_value)
+        except (TypeError, ValueError):
+            goal_value = 0.0
+        try:
+            earned_value = float(earned_value)
+        except (TypeError, ValueError):
+            earned_value = 0.0
+        try:
+            time_spent = float(time_spent)
+        except (TypeError, ValueError):
+            time_spent = 0.0
+        try:
+            time_left = float(time_left)
+        except (TypeError, ValueError):
+            time_left = 0.0
+
+        title = self.font.render("Partida finalizada", True, (255, 255, 255))
+        self.screen.blit(title, (panel_rect.x + 30, panel_rect.y + 40))
+
+        lines = [
+            f"Tiempo usado: {self._format_time(time_spent)}",
+            f"Tiempo restante: {self._format_time(time_left)}",
+            f"Ingresos: {earned_value:.0f} / {goal_value:.0f}",
+            f"Reputacion: {stats.get('reputation', 0)}",
+            f"Entregas completadas: {stats.get('delivered', 0)}",
+            f"Motivo: {reason_label}",
+        ]
+
+        for idx, message in enumerate(lines):
+            line_surface = self.font.render(message, True, (220, 220, 220))
+            self.screen.blit(line_surface, (panel_rect.x + 30, panel_rect.y + 110 + idx * 30))
+
+        instruction = self.small_font.render("Presiona Enter o Esc para salir", True, (200, 200, 200))
+        self.screen.blit(instruction, (panel_rect.x + 30, panel_rect.y + box_height - 50))
+
+    def _format_time(self, seconds: float) -> str:
+        try:
+            value = float(seconds)
+        except (TypeError, ValueError):
+            value = 0.0
+        value = max(0.0, value)
+        minutes = int(value) // 60
+        secs = int(value) % 60
+        return f"{minutes:02d}:{secs:02d}"
+
+    def _get_finish_reason_text(self, reason: str) -> str:
+        if not reason:
+            return "Desconocido"
+        mapping = {
+            "time_up": "Fin de jornada",
+            "manual": "Finalizado por jugador",
+        }
+        return mapping.get(str(reason), str(reason))
 
     def _move_courier(self, dx, dy):
         self.engine.move_courier(dx, dy)
@@ -256,7 +372,81 @@ class View_game:
         self._draw_jobs()
         self._draw_courier()
         self._draw_hud()
+        self._draw_reputation()
         self._draw_weather_info()  
+
+
+    def _draw_reputation(self):
+        courier = self.engine.courier
+        reputation = int(getattr(courier, "reputation", 0))
+        max_reputation = 100
+        star_count = 5
+        star_size = 24
+        star_spacing = 6
+        padding = 8
+        box_height = star_size + padding * 2
+        stars_width = star_count * star_size + (star_count - 1) * star_spacing
+        text_block_width = 110
+        box_width = padding * 2 + stars_width + 10 + text_block_width
+
+        overlay = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        top_left_x = 10
+        top_left_y = 10
+        self.screen.blit(overlay, (top_left_x, top_left_y))
+
+        star_value = (reputation / max_reputation) * star_count if max_reputation else 0
+        center_y = top_left_y + padding + star_size / 2
+        star_origin_x = top_left_x + padding
+
+        for index in range(star_count):
+            center_x = star_origin_x + index * (star_size + star_spacing) + star_size / 2
+            points = self._get_star_points(center_x, center_y, star_size / 2)
+
+            pygame.draw.polygon(self.screen, (70, 70, 70), points)
+            pygame.draw.polygon(self.screen, (20, 20, 20), points, width=2)
+
+            fill_amount = max(0.0, min(1.0, star_value - index))
+            if fill_amount > 0:
+                clip_rect = pygame.Rect(
+                    int(center_x - star_size / 2),
+                    int(center_y - star_size / 2),
+                    int(star_size * fill_amount),
+                    int(star_size),
+                )
+                previous_clip = self.screen.get_clip()
+                self.screen.set_clip(clip_rect)
+                pygame.draw.polygon(self.screen, (255, 215, 0), points)
+                self.screen.set_clip(previous_clip)
+
+        text_x = star_origin_x + stars_width + 10
+        label_surface = self.small_font.render("Reputacion", True, (200, 200, 200))
+        self.screen.blit(label_surface, (text_x, top_left_y + 2))
+        ratio_y = top_left_y + padding + 8
+        ratio_text = self.small_font.render(f"{reputation:02d} / {max_reputation}", True, (255, 255, 255))
+        self.screen.blit(ratio_text, (text_x, ratio_y))
+
+        status_surface = None
+        status_y = ratio_y + 18
+        if reputation >= 90:
+            status_surface = self.small_font.render("Bonus +5%", True, (255, 215, 0))
+        elif reputation < 20:
+            status_surface = self.small_font.render("Critico <20", True, (255, 80, 80))
+        elif reputation < 40:
+            status_surface = self.small_font.render("Riesgo", True, (255, 160, 60))
+
+        if status_surface is not None:
+            self.screen.blit(status_surface, (text_x, status_y))
+
+    def _get_star_points(self, center_x, center_y, outer_radius, inner_ratio=0.5):
+        points = []
+        for i in range(10):
+            angle = math.pi / 5 * i - math.pi / 2
+            radius = outer_radius if i % 2 == 0 else outer_radius * inner_ratio
+            x = center_x + math.cos(angle) * radius
+            y = center_y + math.sin(angle) * radius
+            points.append((int(round(x)), int(round(y))))
+        return points
 
     def _draw_weather_info(self):
       weather_info = self.engine.get_current_weather_info()
@@ -606,9 +796,8 @@ class View_game:
         pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
 
         # Tiempo
-        time_surf = self.font.render(
-            f"Tiempo: {int(self.elapsed_time)}s", True, (255, 255, 255)
-        )
+        remaining_text = f"Tiempo restante: {self._format_time(self.remaining_time)}"
+        time_surf = self.font.render(remaining_text, True, (255, 255, 255))
         self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
 
         # Ingresos
@@ -646,6 +835,10 @@ class View_game:
             f"Inventario:   i    (cambiar 1 - 2)", True, (200, 200, 50),
         )
         self.screen.blit(inventario, (w - 300, h - HUD_HEIGHT + 105))
+        salir = self.font.render(
+            f'Finalizar:   Esc', True, (200, 200, 50)
+        )
+        self.screen.blit(salir, (w - 300, h - HUD_HEIGHT + 125))
         
         self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)

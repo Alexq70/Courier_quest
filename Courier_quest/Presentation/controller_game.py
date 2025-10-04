@@ -181,7 +181,9 @@ class controller_game:
             raise RuntimeError("city/jobs no contiene lista de pedidos")
         print(f"Pedidos cargados: {len(raw_jobs)}")
         self.jobs = [Job(**d) for d in raw_jobs]
-        self.game_service.jobs = self.jobs
+        if self.game_service:
+            self.game_service.set_jobs(self.jobs)
+
     def refresh_jobs(self):
         """
         Carga una nueva lista de pedidos a la lista principal

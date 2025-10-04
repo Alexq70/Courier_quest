@@ -1,5 +1,6 @@
 # src/models/courier.py
 
+import time
 from typing import Tuple, List
 from Logic.entity.job import Job
 from Logic.entity.inventory import Inventory
@@ -18,7 +19,12 @@ class Courier:
         self.current_load: float = 0.0
         self.inventory: Inventory = Inventory(max_weight)
         self.delivered_jobs: List[Job] = []
+        self.total_earned: float = 0.0
         self.exhausted_lock: bool = False # Bloqueo por agotamiento
+        self.weather = "clear"  # valor inicial por defecto
+        self.reputation = 70  # valor inicial
+        self.reputation_streak = 0  # para rachas sin penalización
+        self.first_late_penalty_reduced = False  # control de tardanza reducida
 
         # Resistencia
         self.stamina_max: float = 100.0
@@ -35,14 +41,36 @@ class Courier:
             self.current_load = self.inventory.total_weight()
         return added
 
-    def deliver_job(self, job: Job) -> bool:
-        """Intenta entregar un pedido"""
-        removed = self.inventory.remove_job(job)
-        if removed:
-            self.delivered_jobs.append(job)
-            self.current_load = self.inventory.total_weight()
-            self.recover_stamina(10.0)  # Recupera energía al entregar
-        return removed
+    def deliver_job(self, job: Job) -> None:
+        now = time.time()
+        deadline_ts = job.get_deadline_timestamp()
+        delta = None if deadline_ts is None else deadline_ts - now
+
+        total_duration = job.get_total_duration()
+        if total_duration <= 0:
+            total_duration = 1.0
+
+        if delta is None:
+            self.adjust_reputation(+3)
+        elif delta >= total_duration * 0.2:
+            self.adjust_reputation(+5)
+        elif delta >= 0:
+            self.adjust_reputation(+3)
+        elif -delta <= 30:
+            self.adjust_reputation(-2)
+        elif -delta <= 120:
+            self.adjust_reputation(-5)
+        else:
+            self.adjust_reputation(-10)
+
+        payout = job.payout
+        if self.reputation >= 90:
+            payout *= 1.05
+
+        self.total_earned += payout
+        self.inventory.remove_job(job)
+        self.delivered_jobs.append(job)
+        self.current_load = self.inventory.total_weight()
 
     def move_courier(self, width, height, citymap, dx: int, dy: int):
         """Verifica si puede moverse y actualiza posición"""
@@ -117,3 +145,17 @@ class Courier:
 
     def is_stationary(self, previous_pos: Tuple[int, int]) -> bool:
         return self.position == previous_pos
+    
+    def adjust_reputation(self, delta: int):
+        self.reputation = max(0, min(100, self.reputation + delta))
+
+        if self.reputation < 20:
+            self.trigger_defeat("Reputación crítica")
+
+        if delta < 0:
+            self.reputation_streak = 0
+        else:
+            self.reputation_streak += 1
+            if self.reputation_streak == 3:
+                self.adjust_reputation(+2)
+                self.reputation_streak = 0
