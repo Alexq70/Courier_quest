@@ -596,7 +596,7 @@ class View_game:
       condition_text = self.small_font.render(f"{condition}", True, (255, 255, 255))
       self.screen.blit(condition_text, (text_x, weather_y))
     
-      multiplier_text = self.small_font.render(f"Velocidad: Ã{multiplier:.2f}", True, (255, 255, 255))
+      multiplier_text = self.small_font.render(f"Velocidad: X{multiplier:.2f}", True, (255, 255, 255))
       self.screen.blit(multiplier_text, (text_x, weather_y + 20))
     
       if is_transitioning:
