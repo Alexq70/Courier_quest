@@ -14,7 +14,7 @@ class ScoreBreakdown:
 
     @property
     def total_points(self) -> float:
-        return self.base_income + self.time_bonus - self.penalty_total
+        return max(0.0, self.base_income + self.time_bonus - self.penalty_total)
 
     def as_dict(self) -> Dict[str, float]:
         data = asdict(self)

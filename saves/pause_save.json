@@ -1,0 +1,79 @@
+{
+  "saved_at": 1759617791.3108153,
+  "courier": {
+    "position": [
+      27,
+      7
+    ],
+    "stamina": 95.00000000000014,
+    "stamina_max": 100.0,
+    "reputation": 75,
+    "total_earned": 220.0,
+    "inventory": []
+  },
+  "jobs": [
+    {
+      "id": "PED-001",
+      "pickup": [
+        26,
+        5
+      ],
+      "dropoff": [
+        6,
+        3
+      ],
+      "payout": 180.0,
+      "priority": 0,
+      "weight": 1,
+      "deadline": "2025-09-01T12:10Z"
+    },
+    {
+      "id": "PED-002",
+      "pickup": [
+        21,
+        18
+      ],
+      "dropoff": [
+        11,
+        17
+      ],
+      "payout": 260.0,
+      "priority": 1,
+      "weight": 2,
+      "deadline": "2025-09-01T12:09Z"
+    },
+    {
+      "id": "PED-003",
+      "pickup": [
+        8,
+        16
+      ],
+      "dropoff": [
+        14,
+        6
+      ],
+      "payout": 150.0,
+      "priority": 0,
+      "weight": 1,
+      "deadline": "2025-09-01T12:08Z"
+    },
+    {
+      "id": "PED-005",
+      "pickup": [
+        23,
+        24
+      ],
+      "dropoff": [
+        11,
+        3
+      ],
+      "payout": 300.0,
+      "priority": 1,
+      "weight": 2,
+      "deadline": "2025-09-01T12:11Z"
+    }
+  ],
+  "elapsed_time": 16.76799999999986,
+  "remaining_time": 883.2320000000002,
+  "goal": 1500.0
+}

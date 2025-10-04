@@ -134,9 +134,9 @@ class Courier:
     def get_stamina_state(self) -> str:
         """Estado según nivel de energía"""
         if self.stamina <= 0:
-            return "Exhausto"
+            return "Exhausted"
         elif self.stamina <= 30:
-            return "Cansado"
+            return "Tired"
         else:
             return "Normal"
 
@@ -151,7 +151,7 @@ class Courier:
         state = self.get_stamina_state()
         if state == "Normal":
             return 1.0
-        elif state == "Cansado":
+        elif state == "Tired":
             return 0.8
         else:
             return 0.0
@@ -183,4 +183,5 @@ class Courier:
             if self.reputation_streak == 3:
                 self.adjust_reputation(+2)
                 self.reputation_streak = 0
+
 

@@ -1,6 +1,7 @@
 import sys
 import math
 import time
+import json
 from pathlib import Path
 from Logic.entity.job import Job
 
@@ -9,6 +10,7 @@ from Presentation.controller_game import controller_game
 from Logic.entity.courier import Courier
 from Logic.entity import courier
 from Data.score_repository import ScoreRepository
+from Logic.score_manager import ScoreBreakdown
 
 CELL_SIZE = 22
 HUD_HEIGHT = 75
@@ -82,7 +84,15 @@ class View_game:
         self.session_duration = 15 * 60
         self.remaining_time = float(self.session_duration)
 
-        
+        self.paused = False
+        self.pause_options = ["Resume", "Save", "Exit"]
+        self.pause_index = 0
+        self.pause_feedback = ""
+        self.prev = None
+        self.pause_feedback_time = 0.0
+
+        self._load_game_snapshot_if_available()
+
         self.current_weather_display = ""
         self.weather_transition_progress = 0.0
         pygame.mixer.music.play(-1)
@@ -197,14 +207,15 @@ class View_game:
         while self.running:
             dt = self.clock.tick(FPS) / 1000.0
             self._handle_events()
-            if self.state == "running":
+            if self.state == "running" and not self.paused:
                 self.elapsed_time += dt
                 self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
                 if self.remaining_time <= 0.0:
                     self._finish_game(reason="time_up")
             if self.state == "running":
-                self.engine.update()
-                self._update(dt)
+                if not self.paused:
+                    self.engine.update()
+                    self._update(dt)
 
                 courier = self.engine.courier
                 defeat_reason = getattr(courier, "defeat_reason", None)
@@ -213,7 +224,10 @@ class View_game:
 
             if self.state == "running":
                 self._draw()
-                self._draw_inventory()
+                if self.paused:
+                    self._draw_pause_menu()
+                else:
+                    self._draw_inventory()
             else:
                 self._draw_end_screen()
             pygame.display.flip()
@@ -236,6 +250,25 @@ class View_game:
                 if self.state == "finished":
                     if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                         self.running = False
+                    continue
+
+                if self.state != "running":
+                    continue
+
+                if event.key == pygame.K_p and not self.paused:
+                    self.paused = True
+                    self.pause_index = 0
+                    self.pause_feedback = ""
+                    self.show_inventory = False
+                    continue
+
+                if self.paused:
+                    if event.key == pygame.K_UP:
+                        self.pause_index = (self.pause_index - 1) % len(self.pause_options)
+                    elif event.key == pygame.K_DOWN:
+                        self.pause_index = (self.pause_index + 1) % len(self.pause_options)
+                    elif event.key == pygame.K_RETURN:
+                        self._execute_pause_option()
                     continue
 
                 if event.key == pygame.K_i:
@@ -277,6 +310,8 @@ class View_game:
             self.final_stats["score"] = score_data
             self._store_score_record(score_data, reputation_value, delivered_count, reason)
 
+        self._delete_snapshot()
+
         if pygame.mixer.get_init():
             pygame.mixer.music.fadeout(500)
         pygame.display.set_caption("Courier Quest - Resultado")
@@ -302,7 +337,7 @@ class View_game:
             }
             repository.append(record)
         except Exception as exc:
-            print(f"[Score] No se pudo guardar puntaje: {exc}")
+            print(f"[Score] Unable to store score: {exc}")
 
     def _draw_end_screen(self):
         self.screen.fill((15, 15, 40))
@@ -351,19 +386,19 @@ class View_game:
         except (TypeError, ValueError):
             penalty_value = 0.0
 
-        title = self.font.render("Partida finalizada", True, (255, 255, 255))
+        title = self.font.render("Session complete", True, (255, 255, 255))
         self.screen.blit(title, (panel_rect.x + 30, panel_rect.y + 40))
 
         lines = [
-            f"Tiempo usado: {self._format_time(time_spent)}",
-            f"Tiempo restante: {self._format_time(time_left)}",
-            f"Puntos: {total_points:.0f}",
-            f"Bono tiempo: +{time_bonus_value:.0f}",
-            f"Penalizaciones: -{penalty_value:.0f}",
-            f"Ingresos: {earned_value:.0f} / {goal_value:.0f}",
-            f"Reputacion: {stats.get('reputation', 0)}",
-            f"Entregas completadas: {stats.get('delivered', 0)}",
-            f"Motivo: {reason_label}",
+            f"Time spent: {self._format_time(time_spent)}",
+            f"Time left: {self._format_time(time_left)}",
+            f"Points: {total_points:.0f}",
+            f"Time bonus: +{time_bonus_value:.0f}",
+            f"Penalties: -{penalty_value:.0f}",
+            f"Earnings: {earned_value:.0f} / {goal_value:.0f}",
+            f"Reputation: {stats.get('reputation', 0)}",
+            f"Deliveries: {stats.get('delivered', 0)}",
+            f"Reason: {reason_label}",
         ]
 
         content_font = self.small_font
@@ -375,7 +410,7 @@ class View_game:
             line_surface = content_font.render(message, True, content_color)
             self.screen.blit(line_surface, (panel_rect.x + 30, base_y + idx * line_spacing))
 
-        instruction = content_font.render("Presiona Enter o Esc para salir", True, (200, 200, 200))
+        instruction = content_font.render("Press Enter or Esc to exit", True, (200, 200, 200))
         instruction_y = panel_rect.y + box_height - 40
         self.screen.blit(instruction, (panel_rect.x + 30, instruction_y))
 
@@ -391,13 +426,278 @@ class View_game:
 
     def _get_finish_reason_text(self, reason: str) -> str:
         if not reason:
-            return "Desconocido"
+            return "Unknown"
         mapping = {
-            "time_up": "Fin de jornada",
-            "manual": "Finalizado por jugador",
-            "reputation": "Reputacion critica",
+            "time_up": "Shift complete",
+            "manual": "Ended by player",
+            "reputation": "Critical reputation",
         }
         return mapping.get(str(reason), str(reason))
+
+    def _execute_pause_option(self) -> None:
+        option = self.pause_options[self.pause_index]
+        if option == "Resume":
+            self.paused = False
+        elif option == "Save":
+            self._save_game_snapshot()
+        elif option == "Exit":
+            self.paused = False
+            self._finish_game(reason="manual")
+
+    def _get_save_path(self) -> Path:
+        return Path(__file__).resolve().parents[1] / "saves" / "pause_save.json"
+
+    def _serialize_job(self, job: Job) -> dict:
+        return {
+            "id": getattr(job, "id", None),
+            "pickup": list(getattr(job, "pickup", (0, 0))),
+            "dropoff": list(getattr(job, "dropoff", (0, 0))),
+            "payout": float(getattr(job, "payout", 0.0)),
+            "deadline": getattr(job, "deadline_raw", getattr(job, "deadline", None)),
+            "weight": float(getattr(job, "weight", 0.0)),
+            "priority": int(getattr(job, "priority", 0)),
+            "release_time": getattr(job, "release_time", None),
+        }
+
+    def _deserialize_job(self, data: dict) -> Job:
+        return Job(
+            id=data.get("id"),
+            pickup=tuple(data.get("pickup", (0, 0))),
+            dropoff=tuple(data.get("dropoff", (0, 0))),
+            payout=float(data.get("payout", 0.0)),
+            deadline=data.get("deadline"),
+            weight=float(data.get("weight", 0.0)),
+            priority=int(data.get("priority", 0)),
+            release_time=data.get("release_time"),
+        )
+
+    def _serialize_weather_state(self) -> dict:
+        simulator = getattr(self.engine, "weather_simulator", None)
+        if not simulator:
+            return {}
+        return {
+            "current_condition": simulator.current_condition,
+            "current_intensity": simulator.current_intensity,
+            "current_speed_multiplier": simulator.current_speed_multiplier,
+            "is_transitioning": simulator.is_transitioning,
+            "burst_start_time": simulator.burst_start_time,
+            "burst_duration": simulator.burst_duration,
+            "transition_duration": simulator.transition_duration,
+            "transition_start_time": simulator.transition_start_time,
+            "target_condition": getattr(simulator, "target_condition", None),
+            "target_intensity": getattr(simulator, "target_intensity", None),
+            "target_multiplier": getattr(simulator, "target_multiplier", None),
+        }
+
+    def _apply_weather_snapshot(self, data: dict) -> None:
+        simulator = getattr(self.engine, "weather_simulator", None)
+        if not simulator or not data:
+            return
+        simulator.current_condition = data.get("current_condition", simulator.current_condition)
+        simulator.current_intensity = data.get("current_intensity", simulator.current_intensity)
+        simulator.current_speed_multiplier = data.get("current_speed_multiplier", simulator.current_speed_multiplier)
+        simulator.is_transitioning = data.get("is_transitioning", simulator.is_transitioning)
+        simulator.burst_start_time = data.get("burst_start_time", simulator.burst_start_time)
+        simulator.burst_duration = data.get("burst_duration", simulator.burst_duration)
+        simulator.transition_duration = data.get("transition_duration", simulator.transition_duration)
+        simulator.transition_start_time = data.get("transition_start_time", simulator.transition_start_time)
+        target_condition = data.get("target_condition")
+        if target_condition:
+            simulator.target_condition = target_condition
+            simulator.target_intensity = data.get("target_intensity", simulator.current_intensity)
+            simulator.target_multiplier = data.get("target_multiplier", simulator.current_speed_multiplier)
+        courier = getattr(self.engine, "courier", None)
+        if courier:
+            courier.weather = simulator.current_condition
+
+    def _save_game_snapshot(self) -> None:
+        save_path = self._get_save_path()
+        courier = self.engine.courier
+        score_manager = getattr(self.engine, "score_manager", None)
+        snapshot = {
+            "prev_tile": self.prev,
+            "saved_at": time.time(),
+            "state": self.state,
+            "elapsed_time": self.elapsed_time,
+            "remaining_time": self.remaining_time,
+            "earned": self.earned,
+            "goal": self.goal,
+            "courier": {
+                "position": list(courier.position),
+                "stamina": courier.stamina,
+                "stamina_max": courier.stamina_max,
+                "exhausted_lock": courier.exhausted_lock,
+                "reputation": courier.reputation,
+                "reputation_streak": courier.reputation_streak,
+                "first_late_penalty_reduced": courier.first_late_penalty_reduced,
+                "total_earned": courier.total_earned,
+                "weather": courier.weather,
+                "defeat_reason": courier.defeat_reason,
+                "inventory": [self._serialize_job(job) for job in courier.inventory.items],
+                "delivered_jobs": [self._serialize_job(job) for job in getattr(courier, "delivered_jobs", [])],
+            },
+            "jobs": [self._serialize_job(job) for job in getattr(self.engine, "jobs", [])],
+            "last_job_id": getattr(self.engine.get_last_job(), "id", None),
+            "score_breakdown": score_manager.get_breakdown().as_dict() if score_manager else None,
+            "weather": self._serialize_weather_state(),
+            "game_service": {
+                "session_start": getattr(self.engine.game_service, "session_start", time.time())
+            },
+        }
+        try:
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_text(json.dumps(snapshot, ensure_ascii=True, indent=2), encoding="utf-8")
+            self.pause_feedback = "Game saved. You can exit safely."
+        except Exception as exc:
+            self.pause_feedback = f"Save error: {exc}"
+        self.pause_feedback_time = time.time()
+
+    def _load_game_snapshot_if_available(self) -> None:
+        save_path = self._get_save_path()
+        if not save_path.exists():
+            return
+        try:
+            snapshot = json.loads(save_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            print(f"[Save] Could not read snapshot: {exc}")
+            return
+        try:
+            self._apply_snapshot(snapshot)
+            print("[Save] Snapshot loaded successfully.")
+        except Exception as exc:
+            print(f"[Save] Could not apply snapshot: {exc}")
+
+    def _apply_snapshot(self, snapshot: dict) -> None:
+        self.prev = snapshot.get("prev_tile", None)
+        self.state = "running"
+        self.elapsed_time = max(0.0, float(snapshot.get("elapsed_time", self.elapsed_time)))
+        self.remaining_time = max(0.0, float(snapshot.get("remaining_time", self.remaining_time)))
+        self.earned = float(snapshot.get("earned", self.earned))
+        self.goal = float(snapshot.get("goal", self.goal))
+
+        courier = self.engine.courier
+        courier_data = snapshot.get("courier", {})
+        courier.position = tuple(courier_data.get("position", courier.position))
+        courier.stamina = float(courier_data.get("stamina", courier.stamina))
+        courier.stamina_max = float(courier_data.get("stamina_max", courier.stamina_max))
+        courier.exhausted_lock = bool(courier_data.get("exhausted_lock", courier.exhausted_lock))
+        courier.reputation = int(courier_data.get("reputation", courier.reputation))
+        courier.reputation_streak = int(courier_data.get("reputation_streak", courier.reputation_streak))
+        courier.first_late_penalty_reduced = bool(courier_data.get("first_late_penalty_reduced", courier.first_late_penalty_reduced))
+        courier.total_earned = float(courier_data.get("total_earned", courier.total_earned))
+        courier.weather = courier_data.get("weather", courier.weather)
+        courier.defeat_reason = courier_data.get("defeat_reason")
+
+        session_start = snapshot.get("game_service", {}).get("session_start")
+        if session_start is None:
+            session_start = getattr(self.engine.game_service, "session_start", time.time())
+
+        inventory_jobs = [self._deserialize_job(job) for job in courier_data.get("inventory", [])]
+        courier.inventory.items.clear()
+        if hasattr(courier.inventory, "_heap"):
+            courier.inventory._heap.clear()
+        for job in inventory_jobs:
+            if session_start is not None and hasattr(job, "bind_session_start"):
+                job.bind_session_start(session_start)
+            courier.inventory.add_job(job)
+        courier.current_load = courier.inventory.total_weight()
+
+        courier.delivered_jobs = [self._deserialize_job(job) for job in courier_data.get("delivered_jobs", [])]
+        if session_start is not None:
+            for job in courier.delivered_jobs:
+                if hasattr(job, "bind_session_start"):
+                    job.bind_session_start(session_start)
+
+        jobs = [self._deserialize_job(job) for job in snapshot.get("jobs", [])]
+        if session_start is not None:
+            for job in jobs:
+                if hasattr(job, "bind_session_start"):
+                    job.bind_session_start(session_start)
+
+        self.engine.jobs = jobs
+        if self.engine.game_service:
+            self.engine.game_service.session_start = session_start
+            self.engine.game_service.set_jobs(jobs)
+            self.engine.jobs = list(self.engine.game_service.jobs)
+
+        last_job_id = snapshot.get("last_job_id")
+        if last_job_id:
+            lookup = {}
+            for job in self.engine.jobs:
+                if hasattr(job, "id"):
+                    lookup[job.id] = job
+            for job in courier.inventory.items:
+                if hasattr(job, "id"):
+                    lookup[job.id] = job
+            for job in courier.delivered_jobs:
+                if hasattr(job, "id"):
+                    lookup[job.id] = job
+            last_job = lookup.get(last_job_id)
+            if last_job:
+                self.engine.set_last_job(last_job)
+
+        score_manager = getattr(self.engine, "score_manager", None)
+        score_data = snapshot.get("score_breakdown")
+        if score_manager and score_data:
+            breakdown = ScoreBreakdown(
+                base_income=float(score_data.get("base_income", 0.0)),
+                penalty_total=float(score_data.get("penalty_total", 0.0)),
+                time_bonus=float(score_data.get("time_bonus", 0.0)),
+            )
+            score_manager._breakdown = breakdown
+
+        self._apply_weather_snapshot(snapshot.get("weather", {}))
+        if self.engine.courier:
+            self.engine.courier.weather = getattr(self.engine.weather_simulator, "current_condition", getattr(self.engine.courier, "weather", "clear"))
+
+        self.paused = False
+        self.pause_feedback = ""
+        self.pause_feedback_time = 0.0
+
+    def _delete_snapshot(self) -> None:
+        save_path = self._get_save_path()
+        try:
+            if save_path.exists():
+                save_path.unlink()
+        except OSError as exc:
+            print(f"[Save] Could not remove snapshot: {exc}")
+
+    def _draw_pause_menu(self) -> None:
+        width, height = self.screen.get_size()
+        overlay = pygame.Surface((width, height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        self.screen.blit(overlay, (0, 0))
+
+        panel_width = 320
+        panel_height = 260
+        panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        panel.fill((20, 20, 35, 240))
+        panel_rect = panel.get_rect(center=(width // 2, height // 2))
+        self.screen.blit(panel, panel_rect)
+
+        title = self.font.render("Pause", True, (255, 255, 255))
+        title_x = panel_rect.x + (panel_width - title.get_width()) // 2
+        self.screen.blit(title, (title_x, panel_rect.y + 30))
+
+        option_y = panel_rect.y + 90
+        spacing = 40
+        for idx, option in enumerate(self.pause_options):
+            selected = idx == self.pause_index
+            color = (255, 255, 255) if selected else (180, 180, 180)
+            label = self.font.render(option, True, color)
+            self.screen.blit(label, (panel_rect.x + 80, option_y + idx * spacing))
+            if selected:
+                pointer = self.font.render(">", True, color)
+                self.screen.blit(pointer, (panel_rect.x + 50, option_y + idx * spacing))
+
+        if self.pause_feedback and time.time() - self.pause_feedback_time <= 3.0:
+            feedback = self.small_font.render(self.pause_feedback, True, (200, 200, 100))
+            feedback_x = panel_rect.x + (panel_width - feedback.get_width()) // 2
+            self.screen.blit(feedback, (feedback_x, panel_rect.bottom - 70))
+
+        instruction = self.small_font.render("Press Enter to select", True, (180, 180, 180))
+        instr_x = panel_rect.x + (panel_width - instruction.get_width()) // 2
+        self.screen.blit(instruction, (instr_x, panel_rect.bottom - 40))
 
     def _move_courier(self, dx, dy):
         self.engine.move_courier(dx, dy)
@@ -498,7 +798,7 @@ class View_game:
                 self.screen.set_clip(previous_clip)
 
         text_x = star_origin_x + stars_width + 10
-        label_surface = self.small_font.render("Reputacion", True, (200, 200, 200))
+        label_surface = self.small_font.render("Reputation", True, (200, 200, 200))
         self.screen.blit(label_surface, (text_x, top_left_y + 2))
         ratio_y = top_left_y + padding + 8
         ratio_text = self.small_font.render(f"{reputation:02d} / {max_reputation}", True, (255, 255, 255))
@@ -509,9 +809,9 @@ class View_game:
         if reputation >= 90:
             status_surface = self.small_font.render("Bonus +5%", True, (255, 215, 0))
         elif reputation < 20:
-            status_surface = self.small_font.render("Critico <20", True, (255, 80, 80))
+            status_surface = self.small_font.render("Critical <20", True, (255, 80, 80))
         elif reputation < 40:
-            status_surface = self.small_font.render("Riesgo", True, (255, 160, 60))
+            status_surface = self.small_font.render("Warning", True, (255, 160, 60))
 
         if status_surface is not None:
             self.screen.blit(status_surface, (text_x, status_y))
@@ -523,7 +823,7 @@ class View_game:
 
         breakdown = score_manager.get_breakdown()
         total_points = int(round(breakdown.total_points))
-        score_text = self.small_font.render(f"Puntos: {total_points}", True, (255, 255, 255))
+        score_text = self.small_font.render(f"Points: {total_points}", True, (255, 255, 255))
 
         padding = 8
         circle_radius = 6
@@ -590,17 +890,17 @@ class View_game:
       else:
         text_x = weather_x
     
-      condition_text = self.small_font.render(f"{condition}", True, (255, 255, 255))
+      condition_text = self.small_font.render(f"Condition: {condition}", True, (255, 255, 255))
       self.screen.blit(condition_text, (text_x, weather_y))
     
-      multiplier_text = self.small_font.render(f"Velocidad: Ã{multiplier:.2f}", True, (255, 255, 255))
+      multiplier_text = self.small_font.render(f"Speed: {multiplier:.2f}x", True, (255, 255, 255))
       self.screen.blit(multiplier_text, (text_x, weather_y + 20))
     
       if is_transitioning:
-        progress_text = self.small_font.render(f"TransiciÃ³n: {transition_progress*100:.0f}%", True, (255, 255, 150))
+        progress_text = self.small_font.render(f"Transition: {transition_progress*100:.0f}%", True, (255, 255, 150))
         self.screen.blit(progress_text, (text_x, weather_y + 40))
       else:
-        time_text = self.small_font.render(f"Cambia en: {time_remaining:.0f}s", True, (255, 255, 255))
+        time_text = self.small_font.render(f"Next change in: {time_remaining:.0f}s", True, (255, 255, 255))
         self.screen.blit(time_text, (text_x, weather_y + 40))
       self._draw_weather_effects(condition, intensity,is_transitioning)
 
@@ -881,7 +1181,7 @@ class View_game:
     def _draw_jobs(self): 
         curr_job  = self.engine.get_last_job()
         if curr_job is not None:
-            if curr_job.dropoff != (0,0):
+            if curr_job.dropoff != (0,0) and self.prev is not None:
                x1,y1 = curr_job.dropoff
                self.engine.city_map.tiles[y1][x1] = self.prev
        # se puede hace rque se imprima solo la promera vez
@@ -958,53 +1258,53 @@ class View_game:
         pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
 
         # Tiempo
-        remaining_text = f"Tiempo restante: {self._format_time(self.remaining_time)}"
+        remaining_text = f"Time left: {self._format_time(self.remaining_time)}"
         time_surf = self.font.render(remaining_text, True, (255, 255, 255))
         self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
 
-        # Ingresos
+        # Earnings
         earn_surf = self.font.render(
-            f"Ingresos: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
+            f"Earnings: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
         )
         self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 
-        # BotÃ³n Inventario
+        # BotÃ³n Inventory
         self.inv_button = pygame.Rect(w - 710, h - HUD_HEIGHT +80, 100, 30)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
 
-        btn_text = self.font.render("Inventario", True, (200, 200, 50))
+        btn_text = self.font.render("Inventory", True, (200, 200, 50))
         self.screen.blit(btn_text, (w - 710, h - HUD_HEIGHT + 80))
         
-        btn_controls = self.font.render("Controles", True, (200, 200, 50))
+        btn_controls = self.font.render("Controls", True, (200, 200, 50))
         self.screen.blit(btn_controls, (w - 220, h - HUD_HEIGHT + 20))
         
         tomar = self.font.render(
-            f"Tomar:   E", True, (200, 200, 50),
+            f"Pick up:   E", True, (200, 200, 50),
         )
         self.screen.blit(tomar, (w - 300, h - HUD_HEIGHT + 45))
         
         rechazar = self.font.render(
-            f"Rechazar:   Q", True, (200, 200, 50),
+            f"Reject:   Q", True, (200, 200, 50),
         )
         self.screen.blit(rechazar, (w - 300, h - HUD_HEIGHT + 65))
         
         entregar = self.font.render(
-            f"Entregar:   R", True, (200, 200, 50),
+            f"Deliver:   R", True, (200, 200, 50),
         )
         self.screen.blit(entregar, (w - 300, h - HUD_HEIGHT + 85))
         inventario = self.font.render(
-            f"Inventario:   i    (cambiar 1 - 2)", True, (200, 200, 50),
+            f"Inventory:   I    (switch 1 - 2)", True, (200, 200, 50),
         )
         self.screen.blit(inventario, (w - 300, h - HUD_HEIGHT + 105))
         salir = self.font.render(
-            f'Finalizar:   Esc', True, (200, 200, 50)
+            f'Pause:   P | Exit:   Esc', True, (200, 200, 50)
         )
         self.screen.blit(salir, (w - 300, h - HUD_HEIGHT + 125))
         
         self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
 
-        btn_text = self.font.render("Inventario", True, (255, 255, 255))
+        btn_text = self.font.render("Inventory", True, (255, 255, 255))
         self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
 
         # Barra de stamina (energÃ­a)
@@ -1013,6 +1313,7 @@ class View_game:
         stamina_actual = int(courier.stamina)
         stamina_max = int(courier.stamina_max)
         stamina_state = courier.get_stamina_state()
+        display_state = {"Normal": "Normal", "Tired": "Tired", "Exhausted": "Exhausted"}.get(stamina_state, stamina_state)
 
         bar_height = HUD_HEIGHT - 20
         bar_width = 20
@@ -1025,7 +1326,7 @@ class View_game:
         # Color segÃºn estado
         if stamina_state == "Normal":
             color = (0, 200, 0)
-        elif stamina_state == "Cansado":
+        elif stamina_state == "Tired":
             color = (255, 200, 0)
         else:
             color = (200, 0, 0)
@@ -1038,8 +1339,8 @@ class View_game:
         # Texto: nÃºmero y estado
         text_x = bar_x + 30
         text_y = bar_y + bar_height // 2 - 10
-        stamina_text = self.small_font.render(f"EnergÃ­a: {stamina_actual}/{stamina_max}", True, (255, 255, 255))
-        state_text = self.small_font.render(f"Estado: {stamina_state}", True, (255, 255, 255))
+        stamina_text = self.small_font.render(f"Energy: {stamina_actual}/{stamina_max}", True, (255, 255, 255))
+        state_text = self.small_font.render(f"State: {display_state}", True, (255, 255, 255))
         self.screen.blit(stamina_text, (text_x, text_y))
         self.screen.blit(state_text, (text_x, text_y + 20))
 
@@ -1057,9 +1358,9 @@ class View_game:
        pygame.draw.rect(self.screen, (50, 50, 50), inv_rect, border_radius=10)
        pygame.draw.rect(self.screen, (200, 200, 200), inv_rect, 2, border_radius=10)
 
-       title = self.font.render("Inventario", True, (255, 255, 255))
+       title = self.font.render("Inventory", True, (255, 255, 255))
        self.screen.blit(title, (inv_rect.x + 10, inv_rect.y + 10))
-       capacity = self.font.render( f"Capacidad: {self.engine.courier.inventory.max_weight} kg." , True, (255, 255, 255))
+       capacity = self.font.render( f"Capacity: {self.engine.courier.inventory.max_weight} kg." , True, (255, 255, 255))
        self.screen.blit(capacity, (inv_rect.x + 210, inv_rect.y + 10))
 
        self.priority_button = pygame.Rect(inv_rect.x + 10, inv_rect.y + 40, 120, 30)
@@ -1068,8 +1369,8 @@ class View_game:
        pygame.draw.rect(self.screen, (25, 25, 25), self.priority_button, border_radius=5)
        pygame.draw.rect(self.screen, (25, 25, 25), self.deadline_button, border_radius=5)
 
-       txt_p = self.font.render("Prioridad", True, (255, 255, 255))
-       txt_d = self.font.render("Entrega", True, (255, 255, 255))
+       txt_p = self.font.render("Priority", True, (255, 255, 255))
+       txt_d = self.font.render("Deadline", True, (255, 255, 255))
        self.screen.blit(txt_p, (self.priority_button.x + 10, self.priority_button.y + 5))
        self.screen.blit(txt_d, (self.deadline_button.x + 10, self.deadline_button.y + 5))
 
@@ -1078,13 +1379,22 @@ class View_game:
            for i, item in enumerate(items[:5]):  # muestra hasta 5
                txt = self.small_font.render(
                    f"{item.id}:  "
-                   f"Prioridad: {item.priority}  "
-                  # f" Entrega:{item.deadline}"
-                   f"Peso: {item.weight} kg.  "
+                   f"Priority: {item.priority}  "
+                  # f" Deadline:{item.deadline}"
+                   f"Weight: {item.weight} kg.  "
                    f"${item.payout}", True, (200, 200, 200)
                )
                self.screen.blit(txt, (inv_rect.x + 10, inv_rect.y + 80 + i*30))
        else:
-           empty = self.font.render("VacÃ­o", True, (200, 200, 200))
+           empty = self.font.render("Empty", True, (200, 200, 200))
            self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
+
+
+
+
+
+
+
+
+
 
