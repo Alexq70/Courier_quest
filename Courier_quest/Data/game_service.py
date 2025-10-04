@@ -29,12 +29,12 @@ class GameService:
        min_dist = float("inf")
 
        for job in candidates:
-           if job in self.courier.inventory.items:
+            if job in self.courier.inventory.items:
                d = self.distance(job.dropoff, curr_position)
-           else:
+            else:
                d = self.distance(job.pickup, curr_position)
 
-           if d <= 5 and d < min_dist:
+            if d <= 5 and d < min_dist:
                nearest = job
                min_dist = d
 

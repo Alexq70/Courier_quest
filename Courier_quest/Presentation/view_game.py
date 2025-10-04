@@ -257,7 +257,7 @@ class View_game:
 
             courier = self.engine.courier
             if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
-                courier.recover_stamina(0.2)  # ajustá el valor según el documento
+                courier.recover_stamina(1.0)  # recuperación al estar quieto
 
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""
@@ -702,7 +702,7 @@ class View_game:
         bar_height = HUD_HEIGHT - 20
         bar_width = 20
         bar_x = 10
-        bar_y = h - HUD_HEIGHT - bar_height - 10  # ⬅️ ahora está justo encima del HUD
+        bar_y = h - HUD_HEIGHT - bar_height - 10  #  está justo encima del HUD
 
         # Fondo de la barra
         pygame.draw.rect(self.screen, (80, 80, 80), (bar_x, bar_y, bar_width, bar_height), border_radius=4)
