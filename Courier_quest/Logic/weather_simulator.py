@@ -73,7 +73,7 @@ class WeatherSimulator:
         self.target_intensity = next_intensity
         self.target_multiplier = self._get_speed_multiplier(next_condition)
         
-        print(f"Iniciando transición: {self.current_condition} → {self.target_condition}")
+        print(f"Iniciando transición: {self.current_condition} -> {self.target_condition}")
     
     def _update_transition(self, current_time: float) -> float:
         """Actualiza la transición en curso y retorna progreso (0-1)"""
