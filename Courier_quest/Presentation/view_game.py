@@ -894,6 +894,7 @@ class View_game:
         score_manager = getattr(self.engine, "score_manager", None)
 
         if keys[pygame.K_e] and job is not None:
+<<<<<<< HEAD
             if job not in self.engine.courier.inventory.items:  # aún no tomado
                 if self.engine.courier.pick_job(job):
                     x,y = job.dropoff 
@@ -904,6 +905,7 @@ class View_game:
                    self.play_Sound("error",0)
                     
                    
+=======
             if job not in courier_ref.inventory.items:
                 if courier_ref.pick_job(job):
                     x, y = job.dropoff
@@ -913,10 +915,12 @@ class View_game:
                     self.play_Sound("catch")
                 else:
                     self.play_Sound("error")
+>>>>>>> main
 
         if keys[pygame.K_q] and job is not None:
             if job not in courier_ref.inventory.items and job in self.engine.jobs:
                 self.engine.jobs.remove(job)
+<<<<<<< HEAD
                 self.play_Sound("remove",0)
 
         if keys[pygame.K_r]:
