@@ -3,6 +3,7 @@
 from typing import List, Optional
 import heapq
 from Logic.entity.job import Job
+import random
 
 class Node:
     """Nodo de una lista doblemente enlazada."""
@@ -111,3 +112,24 @@ class Inventory:
         _, _, job = heapq.heappop(self._heap)
         self.remove_job(job)
         return job
+    
+    def random_job(self) -> Optional[Job]:
+       jobs = self.get_all()
+       if not jobs:
+            return None
+       return random.choice(jobs)
+        
+    def ordered_jobs(self, order_by: str = "priority") -> List[Job]:
+        """
+        Devuelve los jobs ordenados según el criterio especificado.
+        order_by: "priority" o "deadline"
+        """
+        jobs = self.get_all()  # obtener todos los jobs en la lista
+        if order_by == "priority":
+            # mayor prioridad primero
+            return sorted(jobs, key=lambda job: (-job.priority, self._deadline_key(job)))
+        elif order_by == "deadline":
+            # fecha de entrega más cercana primero
+            return sorted(jobs, key=lambda job: self._deadline_key(job))
+        else:
+            raise ValueError(f"Ordenamiento no soportado: {order_by}")

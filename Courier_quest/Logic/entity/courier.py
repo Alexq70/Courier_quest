@@ -5,6 +5,7 @@ from typing import Tuple, List, Optional
 from Logic.entity.job import Job
 from Logic.entity.inventory import Inventory
 from Logic.entity.city_map import CityMap
+import random
 
 class Courier:
     """
@@ -182,5 +183,14 @@ class Courier:
             if self.reputation_streak == 3:
                 self.adjust_reputation(+2)
                 self.reputation_streak = 0
+                
+    def posibility_lose_job(self):
+        """
+        Probabilidad del 0,03% de perder un pedido en cada refresco del juego
+        """
+        r1,r2 = (random.randint(0,150),random.randint(0,150))
+        if r1 == r2:
+            return True
+        return False
 
 

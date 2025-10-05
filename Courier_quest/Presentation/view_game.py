@@ -124,7 +124,8 @@ class View_game:
         "wind":"wind.mp3",
         "heat":"heat.mp3",
         "fog":"fog.mp3",
-        "cold":"cold.mp3"
+        "cold":"cold.mp3",
+        "fall": "fall.mp3"
       }
     
       self.sounds = {}
@@ -288,9 +289,9 @@ class View_game:
 
                 if getattr(self, "show_inventory", False):
                     if event.key == pygame.K_1:
-                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("priority")
+                        self.ordered_jobs = self.engine.courier.inventory.ordered_jobs("priority")
                     elif event.key == pygame.K_2:
-                        self.ordered_jobs = self.engine.courier.inventory.order_jobs("deadline")
+                        self.ordered_jobs = self.engine.courier.inventory.ordered_jobs("deadline")
 
     def _finish_game(self, reason="manual"):
         if self.state != "running":
@@ -1231,6 +1232,18 @@ class View_game:
         keys = pygame.key.get_pressed()
         courier_ref = self.engine.courier
         score_manager = getattr(self.engine, "score_manager", None)
+        
+        
+        if len(courier_ref.inventory.get_all())>0 and courier_ref.posibility_lose_job():
+                lost_job = courier_ref.inventory.random_job()
+                if lost_job:
+                    self.engine.set_last_job(lost_job)
+                    courier_ref.inventory.remove_job(lost_job)
+                    self.play_Sound("fall",0)
+                    if score_manager is not None:
+                        score_manager.register_cancellation(job)
+                        courier_ref.adjust_reputation(-6)  # posibilidad de extraviar un pedido
+
 
         if keys[pygame.K_e] and job is not None:
             if job not in self.engine.courier.inventory.get_all():  # aÃºn no tomado
