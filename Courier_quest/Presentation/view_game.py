@@ -1245,12 +1245,18 @@ class View_game:
                    
 
         if keys[pygame.K_q] and job is not None:
-            if job not in courier_ref.inventory.get_all() and job in self.engine.jobs:
-                self.engine.jobs.remove(job)
-                self.play_Sound("remove",0)
-                if score_manager is not None:
-                    score_manager.register_cancellation(job)
-                courier_ref.adjust_reputation(-4)  # Penaliza reputaciÃ³n por cancelaciÃ³n (-4 en la rÃºbrica)
+            if job in courier_ref.inventory.get_all():
+                  next_job = courier_ref.inventory.peek_next()
+                  if next_job == job:
+                    self.engine.set_last_job(job)
+                    self.engine.courier.inventory.remove_job(job)
+                    self.play_Sound("remove",0)
+                    if score_manager is not None:
+                       score_manager.register_cancellation(job)
+                       courier_ref.adjust_reputation(-4)  # Penaliza reputaciÃ³n por cancelaciÃ³n (-4 en la rÃºbrica)
+            else:
+              self.play_Sound("error",0)       
+                       
 
         if keys[pygame.K_r] and job is not None:
             if job in courier_ref.inventory.get_all():
