@@ -133,7 +133,7 @@ class controller_game:
         """Mtodo principal de actualizacin del juego (llamar en cada frame)."""
         current_time = time.time()
 
-        if len(self.jobs) <= 0 and len(self.courier.inventory.items) <= 0:
+        if len(self.jobs) <= 0 and len(self.courier.inventory.get_all()) <= 0:
             self.refresh_jobs()
 
         if current_time - self.last_weather_update >= self.weather_update_interval:

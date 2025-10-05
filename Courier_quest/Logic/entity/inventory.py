@@ -4,6 +4,12 @@ from typing import List, Optional
 import heapq
 from Logic.entity.job import Job
 
+class Node:
+    """Nodo de una lista doblemente enlazada."""
+    def __init__(self, job : Job):
+        self.job = job
+        self.prev: Optional["Node"] = None
+        self.next: Optional["Node"] = None
 
 class Inventory:
     """
@@ -11,82 +17,97 @@ class Inventory:
     capacidad máxima de carga.
     """
     def __init__(self, max_weight: float):
-        self.max_weight: float = max_weight
-        self.items: List[Job] = []
-        self._heap = []  # heap de prioridad para los jobs
+        self.max_weight = max_weight
+        self.head: Optional[Node] = None
+        self.tail: Optional[Node] = None
+        self._heap = []  # cola de prioridad
 
-    def _deadline_key(self, job: Job) -> float:
+    # -------------------------
+    # Métodos internos
+    # -------------------------
+    def _deadline_key(self, job : Job) -> float:
         deadline_ts = job.get_deadline_timestamp() if hasattr(job, "get_deadline_timestamp") else None
         return deadline_ts if deadline_ts is not None else float("inf")
 
     def total_weight(self) -> float:
-        return sum(job.weight for job in self.items)
+        total = 0
+        current = self.head
+        while current:
+            total += current.job.weight
+            current = current.next
+        return total
 
-    def can_add(self, job: Job) -> bool:
+    def can_add(self, job : Job) -> bool:
         return self.total_weight() + job.weight <= self.max_weight
 
-    def add_job(self, job: Job) -> bool:
-        if self.can_add(job):
-            self.items.append(job)
-            # insertamos en el heap con prioridad por defecto (priority > deadline)
-            heapq.heappush(self._heap, (-job.priority, self._deadline_key(job), job))
-            return True
-        return False
+    # -------------------------
+    # Operaciones principales
+    # -------------------------
+    
+    def add_job(self, job : Job) -> bool:
+        """Agrega un nuevo trabajo al final de la lista."""
+        if not self.can_add(job):
+            return False
 
-    def remove_job(self, job: Job) -> bool:
-        """
-        Elimina el pedido con id == job.id tanto de items como del heap.
-        Devuelve True si se borró, False si no existía.
-        """
-        if job in self.items:
-            self.items.remove(job)
-            # reconstruimos el heap quitando el job
-            self._heap = [entry for entry in self._heap if entry[2] != job]
-            heapq.heapify(self._heap)
-            return True
-        return False
-
-    def order_jobs(self, by="priority"):
-        """
-        Devuelve los jobs ordenados como lista según el criterio:
-        - by="priority": mayor prioridad primero, si empatan menor deadline primero
-        - by="deadline": menor deadline primero, si empatan mayor prioridad primero
-        """
-        heap = []
-
-        if by == "priority":
-            for job in self.items:
-                heapq.heappush(heap, (-job.priority, self._deadline_key(job), job))
-        elif by == "deadline":
-            for job in self.items:
-                heapq.heappush(heap, (self._deadline_key(job), -job.priority, job))
+        new_node = Node(job)
+        if not self.head:
+            self.head = self.tail = new_node
         else:
-            raise ValueError("El parámetro 'by' debe ser 'priority' o 'deadline'.")
+            self.tail.next = new_node
+            new_node.prev = self.tail
+            self.tail = new_node
 
-        # Extraer en lista ordenada
-        ordered = []
-        while heap:
-            ordered.append(heapq.heappop(heap)[2])
-        return ordered
+        heapq.heappush(self._heap, (-job.priority, self._deadline_key(job), job))
+        return True
 
-    def exist(self, job: Job) -> bool:
-        return job in self.items
+    def remove_job(self, job : Job) -> bool:
+        """Elimina un trabajo de la lista y del heap."""
+        current = self.head
+        while current:
+            if current.job == job:
+                # desconectar el nodo
+                if current.prev:
+                    current.prev.next = current.next
+                else:
+                    self.head = current.next
+                if current.next:
+                    current.next.prev = current.prev
+                else:
+                    self.tail = current.prev
 
-    def peek_next(self) -> Job:
-        """
-        Devuelve el siguiente job en la cola de prioridad
-        (sin eliminarlo).
-        """
-        if not self._heap:
-            return None
-        return self._heap[0][2]
+                # remover del heap
+                self._heap = [entry for entry in self._heap if entry[2] != job]
+                heapq.heapify(self._heap)
+                return True
+            current = current.next
+        return False
 
-    def pop_next(self) -> Job:
-        """
-        Saca y devuelve el siguiente job según la cola de prioridad.
-        """
+    def get_all(self) -> List:
+        """Devuelve una lista con todos los jobs en orden."""
+        jobs = []
+        current = self.head
+        while current:
+            jobs.append(current.job)
+            current = current.next
+        return jobs
+
+    def exist(self, job : Job) -> bool:
+        """Devuelve True si el trabajo está en la lista."""
+        current = self.head
+        while current:
+            if current.job == job:
+                return True
+            current = current.next
+        return False
+
+    def peek_next(self):
+        """Devuelve el siguiente job en la cola de prioridad sin eliminarlo."""
+        return self._heap[0][2] if self._heap else None
+
+    def pop_next(self):
+        """Saca y devuelve el siguiente job según la cola de prioridad."""
         if not self._heap:
             return None
         _, _, job = heapq.heappop(self._heap)
-        self.items.remove(job)
+        self.remove_job(job)
         return job

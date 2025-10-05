@@ -42,7 +42,7 @@ class GameService:
 
     def job_most_nearly(self, curr_position):
         """Busca el job mas cercano a la posicion del jugador."""
-        candidates = list(self.jobs) + list(self.courier.inventory.items)
+        candidates = list(self.jobs) + list(self.courier.inventory.get_all())
         if not candidates:
             return None
 
@@ -50,7 +50,7 @@ class GameService:
         min_dist = float("inf")
 
         for job in candidates:
-            if job in self.courier.inventory.items:
+            if job in self.courier.inventory.get_all():
                 dist = self.distance(job.dropoff, curr_position)
             else:
                 dist = self.distance(job.pickup, curr_position)

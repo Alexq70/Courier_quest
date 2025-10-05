@@ -1220,7 +1220,7 @@ class View_game:
             x, y = job.pickup
             img = self.tile_images.get("PE")
             self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
-        for job in self.engine.courier.inventory.items:
+        for job in self.engine.courier.inventory.get_all():
               x, y = job.dropoff 
               self.engine.city_map.tiles[y][x]="D"
             
@@ -1233,7 +1233,7 @@ class View_game:
         score_manager = getattr(self.engine, "score_manager", None)
 
         if keys[pygame.K_e] and job is not None:
-            if job not in self.engine.courier.inventory.items:  # aÃºn no tomado
+            if job not in self.engine.courier.inventory.get_all():  # aÃºn no tomado
                 if self.engine.courier.pick_job(job):
                     x,y = job.dropoff 
                     self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
@@ -1245,7 +1245,7 @@ class View_game:
                    
 
         if keys[pygame.K_q] and job is not None:
-            if job not in courier_ref.inventory.items and job in self.engine.jobs:
+            if job not in courier_ref.inventory.get_all() and job in self.engine.jobs:
                 self.engine.jobs.remove(job)
                 self.play_Sound("remove",0)
                 if score_manager is not None:
@@ -1253,7 +1253,7 @@ class View_game:
                 courier_ref.adjust_reputation(-4)  # Penaliza reputaciÃ³n por cancelaciÃ³n (-4 en la rÃºbrica)
 
         if keys[pygame.K_r] and job is not None:
-            if job in courier_ref.inventory.items:
+            if job in courier_ref.inventory.get_all():
                 next_job = courier_ref.inventory.peek_next()
                 if next_job == job:
                     self.engine.set_last_job(job)
@@ -1405,7 +1405,7 @@ class View_game:
        self.screen.blit(txt_p, (self.priority_button.x + 10, self.priority_button.y + 5))
        self.screen.blit(txt_d, (self.deadline_button.x + 10, self.deadline_button.y + 5))
 
-       items = getattr(self, "ordered_jobs", self.engine.courier.inventory.items)
+       items = getattr(self, "ordered_jobs", self.engine.courier.inventory.get_all())
        if items:
            for i, item in enumerate(items[:5]):  # muestra hasta 5
                txt = self.small_font.render(
