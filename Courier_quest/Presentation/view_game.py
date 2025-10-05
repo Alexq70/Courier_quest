@@ -13,7 +13,7 @@ from Logic.entity import courier
 from Data.score_repository import ScoreRepository
 from Logic.score_manager import ScoreBreakdown
 
-CELL_SIZE = 22
+CELL_SIZE = 20
 HUD_HEIGHT = 75
 FPS = 60
 prev = ''
@@ -1274,6 +1274,7 @@ class View_game:
                     if score_manager is not None:
                        score_manager.register_cancellation(job)
                        courier_ref.adjust_reputation(-4)  # Penaliza reputaciÃ³n por cancelaciÃ³n (-4 en la rÃºbrica)
+                       
             else:
               self.play_Sound("error",0)       
                        
@@ -1385,7 +1386,7 @@ class View_game:
            return
        
         w, h = self.screen.get_size()
-        rect = pygame.Rect(w//2 - 200, h//2 - 150, 400, 300)
+        rect = pygame.Rect(w//2 - 220, h//2 - 180, 400, 340)
         pygame.draw.rect(self.screen, (40, 40, 40), rect, border_radius=10)
         pygame.draw.rect(self.screen, (200, 200, 200), rect, 2, border_radius=10)
 
@@ -1393,7 +1394,9 @@ class View_game:
         self.screen.blit(title, (rect.x + 10, rect.y + 10))
 
         controls = [
-            "Move:   W A S D",
+            "Move: (up) (Down) (Left) (Right) ( WSAD ) ",
+            "Retroceder: Backspace",
+            "Caballito: A - D",
             "Pick up:   E",
             "Reject:   Q",
             "Deliver:   R",
