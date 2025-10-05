@@ -286,12 +286,17 @@ class View_game:
 
                 if event.key == pygame.K_i:
                     self.show_inventory = not getattr(self, "show_inventory", False)
+                    
+                if event.key == pygame.K_c:
+                     self.show_controls = not getattr(self, "show_controls", False)
+                     self.show_inventory = False
 
                 if getattr(self, "show_inventory", False):
                     if event.key == pygame.K_1:
                         self.ordered_jobs = self.engine.courier.inventory.ordered_jobs("priority")
                     elif event.key == pygame.K_2:
                         self.ordered_jobs = self.engine.courier.inventory.ordered_jobs("deadline")
+                    
 
     def _finish_game(self, reason="manual"):
         if self.state != "running":
@@ -561,7 +566,7 @@ class View_game:
                 "total_earned": courier.total_earned,
                 "weather": courier.weather,
                 "defeat_reason": courier.defeat_reason,
-                "inventory": [self._serialize_job(job) for job in courier.inventory.items],
+                "inventory": [self._serialize_job(job) for job in courier.inventory.get_all()],
                 "delivered_jobs": [self._serialize_job(job) for job in getattr(courier, "delivered_jobs", [])],
             },
             "jobs": [self._serialize_job(job) for job in getattr(self.engine, "jobs", [])],
@@ -784,6 +789,8 @@ class View_game:
         self._draw_reputation()
         self._draw_score()
         self._draw_weather_info()  
+        if getattr(self, "show_controls", False):
+            self._draw_controls()
 
 
     def _draw_reputation(self):
@@ -1318,44 +1325,21 @@ class View_game:
         )
         self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
 
-        # BotÃ³n Inventory
-        self.inv_button = pygame.Rect(w - 710, h - HUD_HEIGHT +80, 100, 30)
+        # Botonn Inventory
+    
+        self.inv_button = pygame.Rect(w - 200, h - HUD_HEIGHT + 10, 180, 35)
         pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
+        
 
-        btn_text = self.font.render("Inventory", True, (200, 200, 50))
-        self.screen.blit(btn_text, (w - 710, h - HUD_HEIGHT + 80))
+        btn_text = self.font.render("Inventory (press I)", True, (255, 255, 255))
+        self.screen.blit(btn_text, (w - 200, h - HUD_HEIGHT + 15))
         
-        btn_controls = self.font.render("Controls", True, (200, 200, 50))
-        self.screen.blit(btn_controls, (w - 220, h - HUD_HEIGHT + 20))
+        # Botonn Controls
+        self.con_button = pygame.Rect(w - 400, h - HUD_HEIGHT + 10, 180, 35)
+        pygame.draw.rect(self.screen, (70, 70, 200), self.con_button, border_radius=5)
         
-        tomar = self.font.render(
-            f"Pick up:   E", True, (200, 200, 50),
-        )
-        self.screen.blit(tomar, (w - 300, h - HUD_HEIGHT + 45))
-        
-        rechazar = self.font.render(
-            f"Reject:   Q", True, (200, 200, 50),
-        )
-        self.screen.blit(rechazar, (w - 300, h - HUD_HEIGHT + 65))
-        
-        entregar = self.font.render(
-            f"Deliver:   R", True, (200, 200, 50),
-        )
-        self.screen.blit(entregar, (w - 300, h - HUD_HEIGHT + 85))
-        inventario = self.font.render(
-            f"Inventory:   I    (switch 1 - 2)", True, (200, 200, 50),
-        )
-        self.screen.blit(inventario, (w - 300, h - HUD_HEIGHT + 105))
-        salir = self.font.render(
-            f'Pause:   P | Exit:   Esc', True, (200, 200, 50)
-        )
-        self.screen.blit(salir, (w - 300, h - HUD_HEIGHT + 125))
-        
-        self.inv_button = pygame.Rect(w - 120, h - HUD_HEIGHT + 10, 100, 30)
-        pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
-
-        btn_text = self.font.render("Inventory", True, (255, 255, 255))
-        self.screen.blit(btn_text, (w - 110, h - HUD_HEIGHT + 15))
+        btn_controls = self.font.render("Controls (press C) ", True, (200, 200, 50))
+        self.screen.blit(btn_controls, (w - 400, h - HUD_HEIGHT + 15))
 
         # Barra de stamina (energÃ­a)
         courier = self.engine.courier
@@ -1395,6 +1379,34 @@ class View_game:
         self.screen.blit(state_text, (text_x, text_y + 20))
 
 
+    def _draw_controls(self):
+        """Muestra el panel de controles"""
+        if not getattr(self, "show_controls", False):
+           return
+       
+        w, h = self.screen.get_size()
+        rect = pygame.Rect(w//2 - 200, h//2 - 150, 400, 300)
+        pygame.draw.rect(self.screen, (40, 40, 40), rect, border_radius=10)
+        pygame.draw.rect(self.screen, (200, 200, 200), rect, 2, border_radius=10)
+
+        title = self.font.render("Controls", True, (255, 255, 255))
+        self.screen.blit(title, (rect.x + 10, rect.y + 10))
+
+        controls = [
+            "Move:   W A S D",
+            "Pick up:   E",
+            "Reject:   Q",
+            "Deliver:   R",
+            "Inventory:   I",
+            "Controls:   C",
+            "Pause:   P",
+            "Exit:   ESC"
+        ]
+        for i, text in enumerate(controls):
+            surf = self.small_font.render(text, True, (200, 200, 200))
+            self.screen.blit(surf, (rect.x + 20, rect.y + 50 + i * 30))
+            
+            
     def _pickup_job(self):
         self._update_job(self.engine.job_nearly())
 

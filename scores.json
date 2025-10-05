@@ -115,6 +115,21 @@
     "reason": "manual"
   },
   {
+    "player_name": "s",
+    "total_points": 179.63920000000002,
+    "base_income": 0.0,
+    "penalties": 0.0,
+    "time_bonus": 179.63920000000002,
+    "earned": 0.0,
+    "goal": 1500.0,
+    "reputation": 70.0,
+    "delivered": 0,
+    "time_spent": 1.8039999999999987,
+    "time_left": 898.196,
+    "finished_at": 1759697821.9339685,
+    "reason": "manual"
+  },
+  {
     "player_name": "Os",
     "total_points": 179.0598,
     "base_income": 0.0,
