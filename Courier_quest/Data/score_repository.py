@@ -1,6 +1,6 @@
 ﻿import json
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Optional, Any
 
 
 class ScoreRepository:
@@ -13,6 +13,8 @@ class ScoreRepository:
     def append(self, record: Dict[str, Any]) -> None:
         """Agrega un nuevo puntaje y mantiene la lista ordenada."""
         data = self._load_all()
+        if "player_name" not in record:
+            record["player_name"] = None
         data.append(record)
         data.sort(key=lambda item: float(item.get("total_points", 0.0)), reverse=True)
         self._write_all(data)

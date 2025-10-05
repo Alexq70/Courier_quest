@@ -3,6 +3,7 @@ import math
 import time
 import json
 from pathlib import Path
+from typing import Optional
 from Logic.entity.job import Job
 
 import pygame
@@ -20,12 +21,15 @@ prev = ''
 class View_game:
     """Interfaz grÃ¡fica con Pygame para Courier Quest.""" 
 
-    def __init__(self):
+    def __init__(self, player_name: Optional[str] = None, resume: bool = False):
         """Inicializar Pygame, motor y cargar todos los assets."""
         pygame.init()
         pygame.mixer.init
         self.engine = controller_game()
         self.engine.start()
+        self.player_name = (player_name or "Player").strip() or "Player"
+        self.resume_requested = resume
+        self.return_to_menu = False
         self.score_repository = ScoreRepository()
 
         # Dimensiones de pantalla
@@ -85,13 +89,17 @@ class View_game:
         self.remaining_time = float(self.session_duration)
 
         self.paused = False
-        self.pause_options = ["Resume", "Save", "Exit"]
+        self.pause_options = ["Resume", "Save", "Main Menu", "Quit Game"]
         self.pause_index = 0
         self.pause_feedback = ""
         self.prev = None
         self.pause_feedback_time = 0.0
-
-        self._load_game_snapshot_if_available()
+        self.return_to_menu = False
+        self.exit_game = False
+        if resume:
+            self._load_game_snapshot_if_available()
+        else:
+            self._delete_snapshot()
 
         self.current_weather_display = ""
         self.weather_transition_progress = 0.0
@@ -234,22 +242,25 @@ class View_game:
             pygame.display.flip()
 
         pygame.quit()
-        sys.exit()
+        return {"return_to_menu": self.return_to_menu, "exit_game": self.exit_game}
 
     def _handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                self.exit_game = True
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "running":
                         self._finish_game(reason="manual")
                     else:
+                        self.return_to_menu = True
                         self.running = False
                     continue
 
                 if self.state == "finished":
                     if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                        self.return_to_menu = True
                         self.running = False
                     continue
 
@@ -302,7 +313,11 @@ class View_game:
             "reputation": reputation_value,
             "delivered": delivered_count,
             "reason": reason,
+            "player_name": self.player_name,
         }
+
+        if reason == "manual":
+            self.return_to_menu = True
 
         score_manager = getattr(self.engine, "score_manager", None)
         if score_manager is not None:
@@ -311,7 +326,8 @@ class View_game:
             self.final_stats["score"] = score_data
             self._store_score_record(score_data, reputation_value, delivered_count, reason)
 
-        self._delete_snapshot()
+        if reason != "manual":
+            self._delete_snapshot()
 
         if pygame.mixer.get_init():
             pygame.mixer.music.fadeout(500)
@@ -323,6 +339,7 @@ class View_game:
             return
         try:
             record = {
+                "player_name": self.player_name,
                 "total_points": float(score_data.get("total_points", 0.0)),
                 "base_income": float(score_data.get("base_income", 0.0)),
                 "penalties": float(score_data.get("penalty_total", 0.0)),
@@ -390,7 +407,9 @@ class View_game:
         title = self.font.render("Session complete", True, (255, 255, 255))
         self.screen.blit(title, (panel_rect.x + 30, panel_rect.y + 40))
 
+        player_label = stats.get("player_name", self.player_name)
         lines = [
+            f"Player: {player_label}",
             f"Time spent: {self._format_time(time_spent)}",
             f"Time left: {self._format_time(time_left)}",
             f"Points: {total_points:.0f}",
@@ -441,9 +460,15 @@ class View_game:
             self.paused = False
         elif option == "Save":
             self._save_game_snapshot()
-        elif option == "Exit":
+        elif option == "Main Menu":
             self.paused = False
-            self._finish_game(reason="manual")
+            self.return_to_menu = True
+            self.exit_game = False
+            self.running = False
+        elif option == "Quit Game":
+            self.exit_game = True
+            self.return_to_menu = False
+            self.running = False
 
     def _get_save_path(self) -> Path:
         return Path(__file__).resolve().parents[1] / "saves" / "pause_save.json"
@@ -518,6 +543,7 @@ class View_game:
         snapshot = {
             "prev_tile": self.prev,
             "saved_at": time.time(),
+            "player_name": self.player_name,
             "state": self.state,
             "elapsed_time": self.elapsed_time,
             "remaining_time": self.remaining_time,
@@ -570,6 +596,7 @@ class View_game:
 
     def _apply_snapshot(self, snapshot: dict) -> None:
         self.prev = snapshot.get("prev_tile", None)
+        self.player_name = snapshot.get("player_name", self.player_name)
         self.state = "running"
         self.elapsed_time = max(0.0, float(snapshot.get("elapsed_time", self.elapsed_time)))
         self.remaining_time = max(0.0, float(snapshot.get("remaining_time", self.remaining_time)))
@@ -698,10 +725,10 @@ class View_game:
 
         instruction = self.small_font.render("Press Enter to select", True, (180, 180, 180))
         instr_x = panel_rect.x + (panel_width - instruction.get_width()) // 2
-        self.screen.blit(instruction, (instr_x, panel_rect.bottom - 40))
+        self.screen.blit(instruction, (instr_x, panel_rect.bottom - 25))
 
     def _move_courier(self, dx, dy, record_step=True):
-        self.engine.move_courier(dx, dy)
+        self.engine.move_courier(dx, dy, record_step)
 
     def _update(self, dt: float):
      if self.roar == True:
@@ -1392,6 +1419,13 @@ class View_game:
        else:
            empty = self.font.render("Empty", True, (200, 200, 200))
            self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
+
+
+
+
+
+
+
 
 
 

@@ -91,18 +91,19 @@ class Courier:
             "was_late": lateness_seconds > 0,
         }
 
-    def move_courier(self, width, height, citymap, dx: int, dy: int,Del):
+    def move_courier(self, width, height, citymap, dx: int, dy: int, record_step: bool = True):
         if not self.can_move():
-            return  
-        x, y = self.position
+            return
+
         cmap = citymap
-        if(Del==False):
-         x, y=dx,dy
-         if (0 <= x < width and 0 <= y < height and not cmap.is_blocked(x, y)):
-            self.move_to((x, y))
+
+        if record_step:
+            x, y = self.position
+            nx, ny = x + dx, y + dy
         else:
-         nx, ny = x + dx, y + dy
-         if (0 <= nx < width and 0 <= ny < height and not cmap.is_blocked(nx, ny)):
+            nx, ny = dx, dy
+
+        if 0 <= nx < width and 0 <= ny < height and not cmap.is_blocked(nx, ny):
             self.move_to((nx, ny))
 
     def move_to(self, position: Tuple[int, int]) -> None:
