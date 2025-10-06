@@ -15,7 +15,7 @@ Esto significa que agregar y extraer pedidos es eficiente incluso con muchos ele
 
 Para retroceder en los pedidos: 
 
-  def get_steps(self):
+    def get_steps(self):
         if self.pila: 
             return self.pila.pop()
         return (0, 0) 
