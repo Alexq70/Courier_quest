@@ -1,14 +1,12 @@
+
 from pathlib import Path
-
 import pygame
-
 from Presentation.view_game import View_game
 
 SAVE_PATH = Path(__file__).resolve().parent / "saves" / "pause_save.json"
 
 
 def run_start_menu(allow_resume=True):
-    """Muestra el menú principal y gestiona la selección de opciones."""
     pygame.init()
     screen = pygame.display.set_mode((640, 420))
     pygame.display.set_caption("Courier Quest")
@@ -68,9 +66,7 @@ def run_start_menu(allow_resume=True):
             label = font.render(option, True, color)
             screen.blit(label, (200, 140 + idx * 60))
 
-        instruction = small_font.render(
-            "Use arrow keys to navigate, Enter to select", True, (200, 200, 200)
-        )
+        instruction = small_font.render("Use arrow keys to navigate, Enter to select", True, (200, 200, 200))
         screen.blit(instruction, (320 - instruction.get_width() // 2, 340))
 
         if feedback and pygame.time.get_ticks() - feedback_timer < 2500:
@@ -82,13 +78,10 @@ def run_start_menu(allow_resume=True):
 
 
 def run_start_menu_once(allow_resume=True):
-    """Ejecuta el menú principal una sola vez."""
     choice, nickname = run_start_menu(allow_resume=allow_resume)
     return choice, nickname
 
-
 def prompt_for_name(screen, font, small_font):
-    """Solicita al usuario un nombre de jugador."""
     nickname = ""
     clock = pygame.time.Clock()
     while True:
@@ -106,12 +99,7 @@ def prompt_for_name(screen, font, small_font):
                     nickname = nickname[:-1]
                 else:
                     char = event.unicode
-                    if (
-                        char
-                        and char.isprintable()
-                        and not char.isspace()
-                        and len(nickname) < 16
-                    ):
+                    if char and char.isprintable() and not char.isspace() and len(nickname) < 16:
                         nickname += char
 
         screen.fill((18, 24, 38))
@@ -122,9 +110,7 @@ def prompt_for_name(screen, font, small_font):
         pygame.draw.rect(screen, (255, 215, 0), input_box, 2, border_radius=6)
         name_surface = font.render(nickname or "_", True, (255, 255, 255))
         screen.blit(name_surface, (input_box.x + 10, input_box.y + 5))
-        hint = small_font.render(
-            "Press Enter to confirm, Esc to cancel", True, (200, 200, 200)
-        )
+        hint = small_font.render("Press Enter to confirm, Esc to cancel", True, (200, 200, 200))
         screen.blit(hint, (320 - hint.get_width() // 2, 280))
 
         pygame.display.flip()
@@ -132,7 +118,6 @@ def prompt_for_name(screen, font, small_font):
 
 
 def delete_existing_snapshot():
-    """Elimina el archivo de guardado si existe."""
     SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
     if SAVE_PATH.exists():
         try:
@@ -142,7 +127,6 @@ def delete_existing_snapshot():
 
 
 def main():
-    """Función principal del juego."""
     while True:
         allow_resume = SAVE_PATH.exists()
         choice, nickname = run_start_menu(allow_resume=allow_resume)
