@@ -4,7 +4,7 @@ Algoritmos y complejidad algortimica:
 Estructuras usadas: 
 
 Cola de prioridad en pedidos:
-La cola de prioridad de los pedidos en tu proyecto utiliza heapq, que implementa un heap binario.
+La cola de prioridad de los pedidos en el proyecto utiliza heapq, que implementa un heap binario.
 Las operaciones principales tienen las siguientes complejidades:
 
 Insertar un pedido (heappush): O(log n)
