@@ -33,7 +33,7 @@ class GameService:
         self._bind_jobs_to_session(self.jobs)
         if hasattr(self.job_example, "bind_session_start"):
             self.job_example.bind_session_start(self.session_start)
-        self.pila = deque()
+        self.cola = deque()
 
     def _bind_jobs_to_session(self, jobs_iterable: Iterable[Job]) -> None:
         for job in jobs_iterable:
@@ -62,9 +62,6 @@ class GameService:
         return nearest
 
     def distance(self, a, b):
-        """
-        Calcula el pedido mas cercano
-        """
         return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
     def get_last_job(self):
@@ -80,13 +77,13 @@ class GameService:
         self._bind_jobs_to_session(self.jobs)
     
     def get_steps(self):
-        if self.pila: 
-            return self.pila.pop()
+        if self.cola: 
+            return self.cola.pop()
         return (0, 0) 
     
     def include_new_step(self,pos):
-        self.pila.append(pos)
+        self.cola.append(pos)
     
     def has_steps(self):
-        return len(self.pila) > 0
+        return len(self.cola) > 0
 
