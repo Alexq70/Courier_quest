@@ -186,7 +186,7 @@ class Courier:
                 
     def posibility_lose_job(self):
         """
-        Probabilidad del 0,03% de perder un pedido en cada refresco del juego
+        Probabilidad del 0,06% de perder un pedido en cada refresco del juego
         """
         r1,r2 = (random.randint(0,150),random.randint(0,150))
         if r1 == r2:

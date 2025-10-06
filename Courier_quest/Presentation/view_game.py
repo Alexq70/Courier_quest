@@ -222,6 +222,11 @@ class View_game:
                 self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
                 if self.remaining_time <= 0.0:
                     self._finish_game(reason="time_up")
+                    
+            if self.state == "running" and not self.paused:
+                if self.earned >= self.goal:
+                    self._finish_game(reason="total_earned")
+                    
             if self.state == "running":
                 if not self.paused:
                     self.engine.update()

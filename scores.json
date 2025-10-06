@@ -14,6 +14,36 @@
     "reason": "manual"
   },
   {
+    "player_name": "alex",
+    "total_points": 1700.4778000000001,
+    "base_income": 1526.5,
+    "penalties": 0.0,
+    "time_bonus": 173.97780000000023,
+    "earned": 1526.5,
+    "goal": 1500.0,
+    "reputation": 100.0,
+    "delivered": 7,
+    "time_spent": 30.11099999999898,
+    "time_left": 869.889000000001,
+    "finished_at": 1759717815.0686817,
+    "reason": "total_earned"
+  },
+  {
+    "player_name": "alex",
+    "total_points": 1606.6276000000003,
+    "base_income": 1507.5,
+    "penalties": 75.0,
+    "time_bonus": 174.1276000000002,
+    "earned": 1507.5,
+    "goal": 1500.0,
+    "reputation": 100.0,
+    "delivered": 7,
+    "time_spent": 29.361999999999103,
+    "time_left": 870.6380000000009,
+    "finished_at": 1759717937.8606653,
+    "reason": "total_earned"
+  },
+  {
     "total_points": 996.7204000000003,
     "base_income": 823.0,
     "penalties": 0.0,
@@ -229,6 +259,21 @@
     "time_spent": 10.837999999999994,
     "time_left": 889.162,
     "finished_at": 1759653064.630942,
+    "reason": "reputation"
+  },
+  {
+    "player_name": "ALEX",
+    "total_points": 0.0,
+    "base_income": 0.0,
+    "penalties": 825.0,
+    "time_bonus": 169.4470000000001,
+    "earned": 0.0,
+    "goal": 1500.0,
+    "reputation": 16.0,
+    "delivered": 0,
+    "time_spent": 52.76499999999963,
+    "time_left": 847.2350000000004,
+    "finished_at": 1759716143.9204147,
     "reason": "reputation"
   },
   {
