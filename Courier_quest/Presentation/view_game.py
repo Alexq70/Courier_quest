@@ -21,10 +21,10 @@ prev = ''
 class View_game:
     """Interfaz grÃ¡fica con Pygame para Courier Quest.""" 
 
-    def __init__(self, player_name: Optional[str] = None, resume: bool = False):
+    def __init__(self,window, player_name: Optional[str] = None, resume: bool = False):
         """Inicializar Pygame, motor y cargar todos los assets."""
-        pygame.init()
-        pygame.mixer.init
+        self.windowRef = window
+        pygame.mixer.init()
         self.engine = controller_game()
         self.engine.start()
         self.player_name = (player_name or "Player").strip() or "Player"
@@ -35,8 +35,7 @@ class View_game:
         # Dimensiones de pantalla
         width = self.engine.city_map.width * CELL_SIZE
         height = self.engine.city_map.height * CELL_SIZE + HUD_HEIGHT
-        self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("Courier Quest")
+        self.screen = pygame.Surface((width, height))
         self.clock = pygame.time.Clock()
 
         self.move_timer = 0.0
@@ -106,6 +105,10 @@ class View_game:
         pygame.mixer.music.play(-1)
         self.roar=True
         pygame.mixer.music.set_volume(0.3)
+        
+    def get_surface(self):
+        return self.screen
+
 
     def _load_sounds(self, tiles_dir):  
       sounds_dict = {
@@ -245,9 +248,7 @@ class View_game:
                     self._draw_inventory()
             else:
                 self._draw_end_screen()
-            pygame.display.flip()
 
-        pygame.quit()
         return {"return_to_menu": self.return_to_menu, "exit_game": self.exit_game}
 
     def _handle_events(self):
