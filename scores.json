@@ -29,6 +29,21 @@
     "reason": "total_earned"
   },
   {
+    "player_name": "Joker",
+    "total_points": 1614.645,
+    "base_income": 1670.0,
+    "penalties": 225.0,
+    "time_bonus": 169.6450000000001,
+    "earned": 1670.0,
+    "goal": 1500.0,
+    "reputation": 89.0,
+    "delivered": 7,
+    "time_spent": 51.77499999999958,
+    "time_left": 848.2250000000004,
+    "finished_at": 1760688762.7528698,
+    "reason": "total_earned"
+  },
+  {
     "player_name": "alex",
     "total_points": 1606.6276000000003,
     "base_income": 1507.5,
