@@ -140,8 +140,9 @@ def delete_existing_snapshot():
         except OSError:
             pass
 
-def main():
 
+def main():
+    """Función principal del juego."""
     while True:
         allow_resume = SAVE_PATH.exists()
         choice, nickname = run_start_menu(allow_resume=allow_resume)
@@ -149,33 +150,21 @@ def main():
             break
 
         if choice == "new":
-            pygame.init()
-            window = pygame.display.set_mode((1280, 720))
-            pygame.display.set_caption("Courier Quest")
-            
             delete_existing_snapshot()
-            
-            gui = View_game(window,player_name=nickname, resume=False)
+            gui = View_game(player_name=nickname, resume=False)
         elif choice == "resume":
             if not SAVE_PATH.exists():
                 continue
-            gui = View_game(window,player_name=None, resume=True)
+            gui = View_game(player_name=None, resume=True)
         else:
             break
 
-        # ✅ Aquí NO cambiamos nada, gui.run() se sigue encargando
         result = gui.run() or {}
 
         if result.get("exit_game"):
             break
 
-        # ✅ Después de run(), dibujamos el resultado final:
-        window.blit(gui.get_surface(), (0, 0))
-        pygame.display.update()
-
     pygame.quit()
-
-
 
 
 if __name__ == "__main__":
