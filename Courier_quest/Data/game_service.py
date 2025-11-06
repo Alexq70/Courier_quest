@@ -7,6 +7,7 @@ from Logic.entity.job import Job
 from Logic.entity.weather_burst import WeatherBurst
 from Logic.entity.city_map import CityMap
 from Logic.entity.courier import Courier
+from Logic.entity.ia import Ia
 
 
 class GameService:
@@ -23,12 +24,13 @@ class GameService:
         release_time=0,
     )
 
-    def __init__(self, jobs: Iterable[Job], weather: Iterable[WeatherBurst], map: CityMap, courier: Courier):
+    def __init__(self, jobs: Iterable[Job], weather: Iterable[WeatherBurst], map: CityMap, courier: Courier, ia : Ia):
         self.session_start = time.time()
         self.jobs = jobs
         self.weather = weather
         self.map = map
         self.courier = courier
+        self.ia = ia
         self.last_job = self.job_example
         self._bind_jobs_to_session(self.jobs)
         if hasattr(self.job_example, "bind_session_start"):
@@ -82,11 +84,15 @@ class GameService:
     def get_steps(self):
         if self.pila: 
             return self.pila.pop()
-        return (0, 0) 
+        return (0, 0)
     
     def include_new_step(self,pos):
         self.pila.append(pos)
     
     def has_steps(self):
         return len(self.pila) > 0
+    
+    def next_job_ia(self):
+        return 
+        
 

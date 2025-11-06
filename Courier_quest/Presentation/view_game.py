@@ -42,6 +42,8 @@ class View_game:
         self.move_timer = 0.0
         self.move_delay = 0.15 
         self.current_direction = 1  
+        self.current_direction_ia = 1 
+        
 
         # Ruta de las imÃ¡genes 
         assets_dir = Path(__file__).parent.parent.parent / "src" / "assets"
@@ -740,7 +742,11 @@ class View_game:
 
     def _move_courier(self, dx, dy, record_step=True):
         self.engine.move_courier(dx, dy, record_step)
-
+        
+    def _move_ia(self, dx, dy, record_step=True):
+        self.engine.move_ia(dx, dy, record_step)
+        
+             
     def _update(self, dt: float):
      if self.roar == True:
         self.roar = False
@@ -784,12 +790,27 @@ class View_game:
             courier = self.engine.courier
             if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
                 courier.recover_stamina(1.0) 
+            
+                
+    def _movement_ia(self, dt: float): 
+     self.move_timer += dt
+     if self.move_timer >= self.move_delay:
+        dx = dy = self.engine.ia.next_movement_ia()
+        self._pickup_job() 
+        
+        if dx or dy:
+            self._move_ia(dx, dy,True)
+            self.move_timer = 0  
+
+        ia = self.engine.ia
+        if dx == 0 and dy == 0 and ia.stamina < ia.stamina_max:
+            ia.recover_stamina(1.0) 
 
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""
         self._draw_map()
         self._draw_jobs()
-        self._draw_courier()
+        self._draw_players()
         self._draw_hud()
         self._draw_reputation()
         self._draw_score()
@@ -1313,6 +1334,26 @@ class View_game:
         
         center = (px + CELL_SIZE // 2, py + CELL_SIZE // 2)
         pygame.draw.circle(self.screen, (255, 0, 0), center, CELL_SIZE // 3)
+        
+    def _draw_ia(self):
+        x, y = self.engine.ia.position
+        px, py = x * CELL_SIZE, y * CELL_SIZE
+
+        if self.courier_images and self.current_direction_ia in self.courier_images:
+            courier_img = self.courier_images[self.current_direction_ia]
+            if courier_img is not None:
+                img_width, img_height = courier_img.get_size()
+                draw_x = px - (img_width - CELL_SIZE) // 2
+                draw_y = py - (img_height - CELL_SIZE) // 2
+                self.screen.blit(courier_img, (draw_x, draw_y))
+                return
+        
+        center = (px + CELL_SIZE // 2, py + CELL_SIZE // 2)
+        pygame.draw.circle(self.screen, (255, 0, 0), center, CELL_SIZE // 3)
+        
+    def _draw_players(self):
+        self._draw_courier()
+        self._draw_ia()
 
     def _draw_hud(self):
         # Barra inferior
