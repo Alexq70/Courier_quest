@@ -64,6 +64,9 @@ class controller_game:
     def job_nearly(self):
         return self.game_service.job_most_nearly(self.courier.position)
     
+    def job_nearly_ia(self):
+            return self.game_service.job_most_nearly_ia(self.ia.position)
+    
     def set_last_job(self, job):
         self.game_service.set_last_job(job)
         

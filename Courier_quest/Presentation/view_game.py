@@ -10,6 +10,9 @@ import pygame
 from Presentation.controller_game import controller_game
 from Logic.entity.courier import Courier
 from Logic.entity import courier
+from Logic.entity.ia import Ia
+
+
 from Data.score_repository import ScoreRepository
 from Logic.score_manager import ScoreBreakdown
 
@@ -795,7 +798,8 @@ class View_game:
     def _movement_ia(self, dt: float): 
      self.move_timer += dt
      if self.move_timer >= self.move_delay:
-        dx = dy = self.engine.ia.next_movement_ia()
+        info_ia = self.engine.ia.next_movement_ia()
+        dx = dy = info_ia[1]
         self._pickup_job() 
         
         if dx or dy:
@@ -1260,10 +1264,11 @@ class View_game:
             
 
 
-    def _update_job(self, job: Job):
+    def _update_job(self, job: Job, job_ia : Job):
         """Gestiona aceptacion, cancelacion y entrega del pedido cercano."""
         keys = pygame.key.get_pressed()
         courier_ref = self.engine.courier
+        ia_ref = self.engine.ia
         score_manager = getattr(self.engine, "score_manager", None)
         
         
@@ -1318,6 +1323,15 @@ class View_game:
                     self.earned += earned_delta
                 else:
                     self.play_Sound("error",0)
+                    
+        self._update_job_ia(ia_ref,job_ia)
+                    
+    def _update_job_ia(self,ia_ref : Ia ,jobs):
+        """Gestiona aceptacion, cancelacion y entrega del pedido cercano."""
+      
+                    
+
+        
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
@@ -1457,7 +1471,7 @@ class View_game:
             
             
     def _pickup_job(self):
-        self._update_job(self.engine.job_nearly())
+        self._update_job(self.engine.job_nearly(), self.engine.job_nearly_ia())
 
     
     def _draw_inventory(self):

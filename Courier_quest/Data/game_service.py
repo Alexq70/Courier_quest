@@ -94,5 +94,18 @@ class GameService:
     
     def next_job_ia(self):
         return 
+    
+    #---------------------- IA LOGIC -------------------------------
+    def job_most_nearly_ia(self, ia_position):
+        """Busca el job mas cercano a la posicion de la ia."""
+        candidates = list(self.jobs) + list(self.courier.inventory.get_all())
+        if not candidates:
+            return None
+        
+        return self.ia.next_movement_ia(candidates)
+    
+    def _next_movement_ia(self):
+        return self.ia.next_movement_ia
+        
         
 

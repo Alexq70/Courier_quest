@@ -93,6 +93,7 @@ class Ia:
         }
 
     def move_ia(self, width, height, citymap, dx: int, dy: int, record_step: bool = True):
+        """va a recibir en view game la coordenada cambiada"""
         if not self.can_move():
             return
 
@@ -194,13 +195,25 @@ class Ia:
         return False
     
     
-    def next_movement_ia(self):
+    def next_movement_ia(self,jobs):
         """
-        retorna el proximo movimiento que va a hacer en la vista la ia
+        Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
         """
-        self.position[0] + 1
+        options = (self.easy_mode(jobs),self.medium_mode(jobs),self.hard_mode(jobs)) # tupla con las opciones de recorrido
+        tupla = None
+        if self.mode_deliver == 1:
+            tupla[0] = self.obtain_movement(options[0]) # le mandamos la coordenada nueva
+            tupla[1] = options[0]
             
-        return self.position
+        if self.mode_deliver == 2:
+            tupla[0] = self.obtain_movement(options[1]) # le mandamos la coordenada nueva
+            tupla[1] = options[1]
+        
+        if self.mode_deliver == 3:
+            tupla[0] = self.obtain_movement(options[2]) # le mandamos la coordenada nueva
+            tupla[1] = options[2]
+            
+        return tupla # tupla con el movimiento para el view y la coordenada
     
     def set_mode(self,mode):
         """
@@ -209,16 +222,30 @@ class Ia:
         self.mode_deliver = mode
         return
     
-    def easy_mode(self):
-        """modo facil de busqueda"""
+    def easy_mode(self,jobs):
+        """modo facil de busqueda, retorna la tupa con la coordenda mas ooptima"""
         return
     
-    def medium_mode(self):
+    def medium_mode(self,jobs):
         """modo medio de busqueda"""
         return 
         
-    def hard_mode(self):
+    def hard_mode(self,jobs):
         """modo dificil de busqueda"""
         return
+    
+    def obtain_movement(self, other):
+        if self.position[0] > other[0]:
+            return '2' # UP
+        if self.position[0] < other[0]:
+            return '3' # DOWN
+        if  self.position[1] > other[1]:
+            return '4' # LEFT
+        if  self.position[1] < other[1]:
+            return '4' # RIGHT
+        
+        
+        
+        
         
         
