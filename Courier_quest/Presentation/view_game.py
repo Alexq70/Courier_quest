@@ -793,7 +793,29 @@ class View_game:
             courier = self.engine.courier
             if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
                 courier.recover_stamina(1.0) 
+                
+            self._update_ia(dt)
+                
+    def _update_ia(self,dt : float):
+        next_movement = self.engine.ia.next_movement_ia()
+        self.move_timer += dt
+        
+        if self.move_timer >= self.move_delay:
+            self._pickup_job()
+            dx = dy = 0 
+            if next_movement[0] == 2 :
+                dy = -1
+                self.current_direction = 2  
+            elif next_movement[0] == 3:
+                dy = 1
+                self.current_direction = 3  
             
+            if next_movement[0] == 4:
+                dx = -1
+                self.current_direction = 4  
+            elif next_movement[0] == 5:
+                dx = 1
+                self.current_direction = 5 
                 
     def _movement_ia(self, dt: float): 
      self.move_timer += dt
@@ -1324,10 +1346,20 @@ class View_game:
                 else:
                     self.play_Sound("error",0)
                     
-        self._update_job_ia(ia_ref,job_ia)
+        self._update_job_ia(job_ia)
                     
-    def _update_job_ia(self,ia_ref : Ia ,jobs):
+    def _update_job_ia(self,jobs):
         """Gestiona aceptacion, cancelacion y entrega del pedido cercano."""
+        
+        if jobs is not None:
+            if jobs not in self.engine.ia.inventory.get_all():  # aÃºn no tomado
+                if self.engine.courier.pick_job(jobs):
+                    x,y = jobs.dropoff 
+                    self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
+                    self.engine.jobs.remove(jobs)  # lo sacamos de la lista global
+                    self.play_Sound("catch",0)
+                else:
+                   self.play_Sound("error",0)
       
                     
 
