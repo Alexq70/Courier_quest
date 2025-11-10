@@ -30,6 +30,8 @@ class View_game:
         pygame.mixer.init
         self.engine = controller_game()
         self.engine.start()
+        #Aqui se uede obtner la opcion que escoja el usuario 1 Facil 2 Medio 3 Dificil
+        self.engine.ia.set_mode(1)  # Modo de dificultad FACIL para la IA
         self.player_name = (player_name or "Player").strip() or "Player"
         self.resume_requested = resume
         self.return_to_menu = False
@@ -43,9 +45,13 @@ class View_game:
         self.clock = pygame.time.Clock()
 
         self.move_timer = 0.0
-        self.move_delay = 0.15 
+        self.move_delay = 0.15
         self.current_direction = 1  
+        
+        self.ia_move_timer=0.0
+        self.ia_move_delay=0.3
         self.current_direction_ia = 1 
+        
         
 
         # Ruta de las imÃ¡genes 
@@ -86,6 +92,7 @@ class View_game:
 
         self.running = True
         self.elapsed_time = 0.0
+        self.player_interacting = False
         self.goal = self.engine.city_map.goal
         self.earned = 0.0
         self.state = "running"
@@ -213,47 +220,50 @@ class View_game:
             self.sounds[sound_name].set_volume(0.5)
     
     def stop_Sound(self, sound_name):
-     if hasattr(self, 'sounds') and sound_name in self.sounds:
-        sound = self.sounds[sound_name]
-        sound.stop()
+        if hasattr(self, 'sounds') and sound_name in self.sounds:
+            sound = self.sounds[sound_name]
+            sound.stop()
 
     def run(self):
-        """Bucle principal: eventos, actualizacion y dibujo."""
-        while self.running:
-            dt = self.clock.tick(FPS) / 1000.0
-            self._handle_events()
-            if self.state == "running" and not self.paused:
-                self.elapsed_time += dt
-                self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
-                if self.remaining_time <= 0.0:
-                    self._finish_game(reason="time_up")
-                    
-            if self.state == "running" and not self.paused:
-                if self.earned >= self.goal:
-                    self._finish_game(reason="total_earned")
-                    
-            if self.state == "running":
-                if not self.paused:
-                    self.engine.update()
-                    self._update(dt)
+            """Bucle principal: eventos, actualizacion y dibujo."""
+            while self.running:
+                dt = self.clock.tick(FPS) / 1000.0
+                self._handle_events()
+                if self.state == "running" and not self.paused:
+                    self.elapsed_time += dt
+                    self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
+                    if self.remaining_time <= 0.0:
+                        self._finish_game(reason="time_up")
+                        
+                if self.state == "running" and not self.paused:
+                    if self.earned >= self.goal:
+                        self._finish_game(reason="total_earned")
+                        
+                if self.state == "running":
+                    if not self.paused:
+                        self.engine.update()
+                        self._update(dt)
+                        #Se hace separado para no intervernir con el jugador
+                        self._update_ia(dt)
 
-                courier = self.engine.courier
-                defeat_reason = getattr(courier, "defeat_reason", None)
-                if defeat_reason and self.state == "running":
-                    self._finish_game(reason=defeat_reason)
+                    courier = self.engine.courier
+                    ia=self.engine.ia
+                    defeat_reason = getattr(courier, "defeat_reason", None)
+                    if defeat_reason and self.state == "running":
+                        self._finish_game(reason=defeat_reason)
 
-            if self.state == "running":
-                self._draw()
-                if self.paused:
-                    self._draw_pause_menu()
+                if self.state == "running":
+                    self._draw()
+                    if self.paused:
+                        self._draw_pause_menu()
+                    else:
+                        self._draw_inventory()
                 else:
-                    self._draw_inventory()
-            else:
-                self._draw_end_screen()
-            pygame.display.flip()
+                    self._draw_end_screen()
+                pygame.display.flip()
 
-        pygame.quit()
-        return {"return_to_menu": self.return_to_menu, "exit_game": self.exit_game}
+            pygame.quit()
+            return {"return_to_menu": self.return_to_menu, "exit_game": self.exit_game}
 
     def _handle_events(self):
         for event in pygame.event.get():
@@ -306,7 +316,6 @@ class View_game:
                         self.ordered_jobs = self.engine.courier.inventory.ordered_jobs("priority")
                     elif event.key == pygame.K_2:
                         self.ordered_jobs = self.engine.courier.inventory.ordered_jobs("deadline")
-                    
 
     def _finish_game(self, reason="manual"):
         if self.state != "running":
@@ -793,6 +802,7 @@ class View_game:
             courier = self.engine.courier
             if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
                 courier.recover_stamina(1.0) 
+<<<<<<< Updated upstream
                 
             self._update_ia(dt)
                 
@@ -827,10 +837,63 @@ class View_game:
         if dx or dy:
             self._move_ia(dx, dy,True)
             self.move_timer = 0  
+=======
+                
+                
+    def _update_ia(self, dt: float):
+        """Actualiza movimiento de la IA con control de tiempo."""
+        jobs = self.engine.jobs
+        next_movement = self.engine.ia.next_movement_ia(jobs)
+>>>>>>> Stashed changes
 
-        ia = self.engine.ia
-        if dx == 0 and dy == 0 and ia.stamina < ia.stamina_max:
-            ia.recover_stamina(1.0) 
+        # acumula tiempo del movimiento IA
+        #   Tuve que usar su propio mover timer y delay por que sino anda todo loco
+        self.ia_move_timer += dt
+
+        if self.ia_move_timer >= self.ia_move_delay:
+            self.ia_move_timer = 0.0
+
+            dx = dy = 0
+            if next_movement[0] == 2:
+                dy = -1
+                self.current_direction_ia = 2
+            elif next_movement[0] == 3:
+                dy = 1
+                self.current_direction_ia = 3
+            elif next_movement[0] == 4:
+                dx = -1
+                self.current_direction_ia = 4
+            elif next_movement[0] == 5:
+                dx = 1
+                self.current_direction_ia = 5
+
+            ia_x, ia_y = self.engine.ia.position
+            target_x, target_y = next_movement[1]
+            dx = target_x - ia_x
+            dy = target_y - ia_y
+
+            self.engine.move_ia(dx, dy)
+            self._pickup_job_ia()
+            
+            if not self.player_interacting:
+                self._pickup_job_ia()
+
+    def _movement_ia(self, dt: float): 
+        jobs = self.engine.jobs
+        self.move_timer += dt
+        
+        if self.move_timer >= self.move_delay:
+            info_ia = self.engine.ia.next_movement_ia(jobs)
+            dx = dy = info_ia[1]
+            self._pickup_job() 
+            
+            if dx or dy:
+                self._move_ia(dx, dy,True)
+                self.move_timer = 0  
+
+            ia = self.engine.ia
+            if dx == 0 and dy == 0 and ia.stamina < ia.stamina_max:
+                ia.recover_stamina(1.0) 
 
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""
@@ -1273,16 +1336,16 @@ class View_game:
         curr_job  = self.engine.get_last_job()
         if curr_job is not None:
             if curr_job.dropoff != (0,0) and self.prev is not None:
-               x1,y1 = curr_job.dropoff
-               self.engine.city_map.tiles[y1][x1] = self.prev
+                x1,y1 = curr_job.dropoff
+                self.engine.city_map.tiles[y1][x1] = self.prev
        # se puede hace rque se imprima solo la promera vez
         for job in self.engine.jobs:
             x, y = job.pickup
             img = self.tile_images.get("PE")
             self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
         for job in self.engine.courier.inventory.get_all():
-              x, y = job.dropoff 
-              self.engine.city_map.tiles[y][x]="D"
+            x, y = job.dropoff 
+            self.engine.city_map.tiles[y][x]="D"
             
 
 
@@ -1313,7 +1376,7 @@ class View_game:
                     self.engine.jobs.remove(job)  # lo sacamos de la lista global
                     self.play_Sound("catch",0)
                 else:
-                   self.play_Sound("error",0)
+                    self.play_Sound("error",0)
                     
                    
 
@@ -1346,6 +1409,7 @@ class View_game:
                 else:
                     self.play_Sound("error",0)
                     
+<<<<<<< Updated upstream
         self._update_job_ia(job_ia)
                     
     def _update_job_ia(self,jobs):
@@ -1364,6 +1428,26 @@ class View_game:
                     
 
         
+=======
+    def _update_job_ia(self, jobs):
+        """Gestiona aceptación, cancelación y entrega del pedido cercano."""
+        if jobs is not None:
+            if jobs not in self.engine.ia.inventory.get_all():  # aún no tomado
+                if self.engine.courier.pick_job(jobs):
+                    x, y = jobs.dropoff
+                    # Guarda el tile anterior para saber qué hay en el destino
+                    self.prev = self.engine.city_map.tiles[y][x]
+
+                    # Protección: evitar crash si el pedido ya fue removido
+                    if jobs in self.engine.jobs:
+                        self.engine.jobs.remove(jobs)  # lo sacamos de la lista global
+                    else:
+                        print(f"[WARN] Job {jobs} no estaba en la lista global (IA o jugador ya lo tomaron).")
+
+                    self.play_Sound("catch", 0)
+                else:
+                    self.play_Sound("error", 0)           
+>>>>>>> Stashed changes
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
@@ -1436,6 +1520,7 @@ class View_game:
 
         # Barra de stamina (energÃ­a)
         courier = self.engine.courier
+        ia = self.engine.ia
         stamina_pct = courier.get_stamina_percentage()
         stamina_actual = int(courier.stamina)
         stamina_max = int(courier.stamina_max)
@@ -1502,8 +1587,15 @@ class View_game:
             self.screen.blit(surf, (rect.x + 20, rect.y + 50 + i * 30))
             
             
+    def _pickup_job_ia(self):
+        self._update_job(self.engine.job_nearly(), self.engine.job_nearly())
+    
     def _pickup_job(self):
+<<<<<<< Updated upstream
         self._update_job(self.engine.job_nearly(), self.engine.job_nearly_ia())
+=======
+        self._update_job(self.engine.job_nearly(), self.engine.job_nearly())
+>>>>>>> Stashed changes
 
     
     def _draw_inventory(self):
@@ -1545,21 +1637,3 @@ class View_game:
        else:
            empty = self.font.render("Empty", True, (200, 200, 200))
            self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -113,8 +113,8 @@ class controller_game:
 
         # 4) Courier
         self.courier = Courier(start_pos=(0, 0), max_weight=10)
-        self.ia = Ia(start_pos=(0, 29), max_weight=10)
-        print(f"Courier inicializado en {self.courier.position}")
+        self.ia = Ia(start_pos=(0,0), max_weight=10)
+        print(f"Courier inicializado{self.courier.position}  e IA inicializada {self.ia.position}.")
 
     def _generate_initial_bursts(self):
         """Genera bursts iniciales para compatibilidad con código existente"""
@@ -188,4 +188,3 @@ class controller_game:
 
     def include_step(self, pos):
         self.game_service.include_new_step(pos)
-

@@ -9,8 +9,8 @@ import random
 class Ia:
     """
     Representa a la IA:
-      - posición en el mapa
-      - resistencia (energía), carga, inventario y entregas
+        - posición en el mapa
+        - resistencia (energía), carga, inventario y entregas
     """
 
     def __init__(self, start_pos: Tuple[int, int], max_weight: float):
@@ -200,6 +200,7 @@ class Ia:
         Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
         """
         options = (self.easy_mode(jobs),self.medium_mode(jobs),self.hard_mode(jobs)) # tupla con las opciones de recorrido
+<<<<<<< Updated upstream
         tupla = None
         if self.mode_deliver == 1:
             tupla[0] = self.obtain_movement(options[0]) # le mandamos la coordenada nueva
@@ -210,6 +211,19 @@ class Ia:
             tupla[1] = options[1]
         
         if self.mode_deliver == 3:
+=======
+        tupla = [None,None] # tupla que va a retornar (movimiento,coordenada)
+        
+        if self.mode_deliver == 1:   #Facil
+            tupla[0] = self.obtain_movement(options[0]) # le mandamos la coordenada nueva
+            tupla[1] = options[0]
+            
+        if self.mode_deliver == 2:   #Medio
+            tupla[0] = self.obtain_movement(options[1]) # le mandamos la coordenada nueva
+            tupla[1] = options[1]
+        
+        if self.mode_deliver == 3:    #Dificil
+>>>>>>> Stashed changes
             tupla[0] = self.obtain_movement(options[2]) # le mandamos la coordenada nueva
             tupla[1] = options[2]
             
@@ -221,6 +235,7 @@ class Ia:
         """
         self.mode_deliver = mode
         return
+<<<<<<< Updated upstream
     
     def easy_mode(self,jobs):
         """modo facil de busqueda, retorna la tupa con la coordenda mas ooptima"""
@@ -230,11 +245,88 @@ class Ia:
         """modo medio de busqueda"""
         return 
         
+=======
+
+    def easy_mode(self, jobs):
+        """
+        Modo fácil:
+        El jugador CPU (IA) se mueve de forma aleatoria,
+        pero con una ligera tendencia a avanzar hacia un pedido cercano.
+        """
+
+        current_x, current_y = self.position
+
+        # --- 1. Si existen pedidos ---
+        if jobs:
+            # Selecciona un pedido al azar
+            job = random.choice(jobs)
+
+            # Intenta obtener la posición del pedido
+            job_x = job_y = None
+            if hasattr(job, "pickup_position"):
+                job_x, job_y = job.pickup_position
+            elif hasattr(job, "pickup"):
+                job_x, job_y = job.pickup
+            elif hasattr(job, "get_pickup_position"):
+                job_x, job_y = job.get_pickup_position()
+
+            # --- 2. Movimiento con tendencia al pedido ---
+            if job_x is not None and job_y is not None:
+                dx = dy = 0
+
+                # Se mueve un paso hacia el pedido
+                if job_x > current_x:
+                    dx = 1
+                elif job_x < current_x:
+                    dx = -1
+                elif job_y > current_y:
+                    dy = 1
+                elif job_y < current_y:
+                    dy = -1
+
+                # 50% de probabilidad de moverse hacia el pedido
+                if random.random() < 0.5:
+                    return (current_x + dx, current_y + dy)
+
+        # --- 3. Movimiento aleatorio puro ---
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        dx, dy = random.choice(directions)
+        new_x = current_x + dx
+        new_y = current_y + dy
+
+        return (new_x, new_y)
+
+
+    def medium_mode(self,jobs):
+        """
+        PRUEBA-Modo medio:
+        Movimiento aleatorio
+        """
+
+        # Direcciones posibles: izquierda, derecha, arriba, abajo
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+        # Escoge una dirección aleatoria
+        dx, dy = random.choice(directions)
+
+        # Obtiene posición actual
+        current_x, current_y = self.position
+
+        # Calcula nueva posición
+        new_x = current_x + dx
+        new_y = current_y + dy
+
+        # Retorna la nueva posición
+        return (new_x, new_y)
+            
+            
+>>>>>>> Stashed changes
     def hard_mode(self,jobs):
         """modo dificil de busqueda"""
         return
     
     def obtain_movement(self, other):
+<<<<<<< Updated upstream
         if self.position[0] > other[0]:
             return '2' # UP
         if self.position[0] < other[0]:
@@ -249,3 +341,30 @@ class Ia:
         
         
         
+=======
+        """
+        Recibe una coordenada objetivo 'other' (x,y) y devuelve un código de dirección entero:
+        2 = UP, 3 = DOWN, 0 = LEFT, 1 = RIGHT
+        Si other es None, retorna None.
+        """
+        if other is None:
+            return None
+
+        # asegurarnos que other tiene formato (x,y)
+        try:
+            ox, oy = int(other[0]), int(other[1])
+        except Exception:
+            return None
+
+        if self.position[0] > ox:
+            return 2  # UP
+        if self.position[0] < ox:
+            return 3  # DOWN
+        if self.position[1] > oy:
+            return 0  # LEFT
+        if self.position[1] < oy:
+            return 1  # RIGHT
+
+        # Si ya estamos en la misma celda
+        return None
+>>>>>>> Stashed changes

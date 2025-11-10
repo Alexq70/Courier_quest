@@ -1,5 +1,20 @@
 [
   {
+    "player_name": "l",
+    "total_points": 1750.5800000000002,
+    "base_income": 1735.5,
+    "penalties": 150.0,
+    "time_bonus": 165.08000000000013,
+    "earned": 1735.5,
+    "goal": 1500.0,
+    "reputation": 100.0,
+    "delivered": 8,
+    "time_spent": 74.59999999999951,
+    "time_left": 825.4000000000005,
+    "finished_at": 1762727492.6158538,
+    "reason": "total_earned"
+  },
+  {
     "total_points": 1729.696,
     "base_income": 1568.5,
     "penalties": 0.0,
@@ -29,6 +44,39 @@
     "reason": "total_earned"
   },
   {
+<<<<<<< Updated upstream
+=======
+    "player_name": "L",
+    "total_points": 1659.6800000000003,
+    "base_income": 1637.0,
+    "penalties": 150.0,
+    "time_bonus": 172.68000000000026,
+    "earned": 1637.0,
+    "goal": 1500.0,
+    "reputation": 100.0,
+    "delivered": 8,
+    "time_spent": 36.599999999998786,
+    "time_left": 863.4000000000012,
+    "finished_at": 1762732544.5050194,
+    "reason": "total_earned"
+  },
+  {
+    "player_name": "Joker",
+    "total_points": 1614.645,
+    "base_income": 1670.0,
+    "penalties": 225.0,
+    "time_bonus": 169.6450000000001,
+    "earned": 1670.0,
+    "goal": 1500.0,
+    "reputation": 89.0,
+    "delivered": 7,
+    "time_spent": 51.77499999999958,
+    "time_left": 848.2250000000004,
+    "finished_at": 1760688762.7528698,
+    "reason": "total_earned"
+  },
+  {
+>>>>>>> Stashed changes
     "player_name": "alex",
     "total_points": 1606.6276000000003,
     "base_income": 1507.5,
@@ -41,6 +89,21 @@
     "time_spent": 29.361999999999103,
     "time_left": 870.6380000000009,
     "finished_at": 1759717937.8606653,
+    "reason": "total_earned"
+  },
+  {
+    "player_name": "l",
+    "total_points": 1525.8212,
+    "base_income": 1509.5,
+    "penalties": 150.0,
+    "time_bonus": 166.3212000000001,
+    "earned": 1509.5,
+    "goal": 1500.0,
+    "reputation": 95.0,
+    "delivered": 7,
+    "time_spent": 68.39399999999968,
+    "time_left": 831.6060000000003,
+    "finished_at": 1762735424.8436532,
     "reason": "total_earned"
   },
   {
@@ -189,6 +252,21 @@
     "reason": "manual"
   },
   {
+    "player_name": "Lui",
+    "total_points": 175.48860000000013,
+    "base_income": 0.0,
+    "penalties": 0.0,
+    "time_bonus": 175.48860000000013,
+    "earned": 0.0,
+    "goal": 1500.0,
+    "reputation": 70.0,
+    "delivered": 0,
+    "time_spent": 22.556999999999427,
+    "time_left": 877.4430000000006,
+    "finished_at": 1762657663.8023121,
+    "reason": "manual"
+  },
+  {
     "total_points": 157.7774,
     "base_income": 220.0,
     "penalties": 225.0,
@@ -274,6 +352,51 @@
     "time_spent": 52.76499999999963,
     "time_left": 847.2350000000004,
     "finished_at": 1759716143.9204147,
+    "reason": "reputation"
+  },
+  {
+    "player_name": "l",
+    "total_points": 0.0,
+    "base_income": 400.0,
+    "penalties": 825.0,
+    "time_bonus": 171.73940000000022,
+    "earned": 400.0,
+    "goal": 1500.0,
+    "reputation": 14.0,
+    "delivered": 2,
+    "time_spent": 41.30299999999897,
+    "time_left": 858.697000000001,
+    "finished_at": 1762732702.8036804,
+    "reason": "reputation"
+  },
+  {
+    "player_name": "l",
+    "total_points": 0.0,
+    "base_income": 260.0,
+    "penalties": 750.0,
+    "time_bonus": 173.34280000000024,
+    "earned": 260.0,
+    "goal": 1500.0,
+    "reputation": 15.0,
+    "delivered": 1,
+    "time_spent": 33.28599999999877,
+    "time_left": 866.7140000000012,
+    "finished_at": 1762732909.33473,
+    "reason": "reputation"
+  },
+  {
+    "player_name": "l",
+    "total_points": 0.0,
+    "base_income": 0.0,
+    "penalties": 675.0,
+    "time_bonus": 174.2230000000002,
+    "earned": 0.0,
+    "goal": 1500.0,
+    "reputation": 16.0,
+    "delivered": 0,
+    "time_spent": 28.884999999998996,
+    "time_left": 871.115000000001,
+    "finished_at": 1762733260.9598455,
     "reason": "reputation"
   },
   {
