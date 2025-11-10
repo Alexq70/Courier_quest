@@ -1322,6 +1322,20 @@ class View_game:
                 self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
             
+        # parte de la IA
+        if curr_job_ia is not None:
+            if curr_job_ia.dropoff != (0,0) and self.prev_ia is not None:
+                x1,y1 = curr_job_ia.dropoff
+                self.engine.city_map.tiles[y1][x1] = self.prev_ia
+       # se puede hacer que se imprima solo la promera vez
+        for job in self.engine.jobs:
+            x, y = job.pickup
+            img = self.tile_images.get("PE")
+            self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+        for job in self.engine.ia.inventory.get_all():
+            x, y = job.dropoff 
+            self.engine.city_map.tiles[y][x]="D"
+            
 
 
     def _update_job(self, job: Job):

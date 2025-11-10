@@ -33,6 +33,7 @@ class GameService:
         self.ia = ia
         self.last_job = self.job_example
         self.last_job_ia = self.job_example
+        self.last_job_ia = self.job_example
         self._bind_jobs_to_session(self.jobs)
         if hasattr(self.job_example, "bind_session_start"):
             self.job_example.bind_session_start(self.session_start)
@@ -98,28 +99,25 @@ class GameService:
     
     #---------------------- IA LOGIC -------------------------------
     def job_most_nearly_ia(self, ia_position):
-        """Busca el job más cercano a la IA con distancia máxima 5."""
+        """Busca el job mas cercano a la posicion de la ia."""
         candidates = list(self.jobs) + list(self.ia.inventory.get_all())
         if not candidates:
             return None
 
-        nearest = None
+        nearest: Job | None = None
         min_dist = float("inf")
 
         for job in candidates:
-            # Si el job está en inventario → ir al dropoff
             if job in self.ia.inventory.get_all():
                 dist = self.distance(job.dropoff, ia_position)
             else:
                 dist = self.distance(job.pickup, ia_position)
 
-            # Debe estar relativamente cerca para evitar IA perdida
             if dist <= 5 and dist < min_dist:
-                min_dist = dist
                 nearest = job
+                min_dist = dist
 
         return nearest
-
     
     def _next_movement_ia(self):
         return self.ia.next_movement_ia()
