@@ -200,18 +200,6 @@ class Ia:
         Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
         """
         options = (self.easy_mode(jobs),self.medium_mode(jobs),self.hard_mode(jobs)) # tupla con las opciones de recorrido
-<<<<<<< Updated upstream
-        tupla = None
-        if self.mode_deliver == 1:
-            tupla[0] = self.obtain_movement(options[0]) # le mandamos la coordenada nueva
-            tupla[1] = options[0]
-            
-        if self.mode_deliver == 2:
-            tupla[0] = self.obtain_movement(options[1]) # le mandamos la coordenada nueva
-            tupla[1] = options[1]
-        
-        if self.mode_deliver == 3:
-=======
         tupla = [None,None] # tupla que va a retornar (movimiento,coordenada)
         
         if self.mode_deliver == 1:   #Facil
@@ -223,7 +211,6 @@ class Ia:
             tupla[1] = options[1]
         
         if self.mode_deliver == 3:    #Dificil
->>>>>>> Stashed changes
             tupla[0] = self.obtain_movement(options[2]) # le mandamos la coordenada nueva
             tupla[1] = options[2]
             
@@ -235,17 +222,6 @@ class Ia:
         """
         self.mode_deliver = mode
         return
-<<<<<<< Updated upstream
-    
-    def easy_mode(self,jobs):
-        """modo facil de busqueda, retorna la tupa con la coordenda mas ooptima"""
-        return
-    
-    def medium_mode(self,jobs):
-        """modo medio de busqueda"""
-        return 
-        
-=======
 
     def easy_mode(self, jobs):
         """
@@ -320,28 +296,11 @@ class Ia:
         return (new_x, new_y)
             
             
->>>>>>> Stashed changes
     def hard_mode(self,jobs):
         """modo dificil de busqueda"""
         return
     
     def obtain_movement(self, other):
-<<<<<<< Updated upstream
-        if self.position[0] > other[0]:
-            return '2' # UP
-        if self.position[0] < other[0]:
-            return '3' # DOWN
-        if  self.position[1] > other[1]:
-            return '4' # LEFT
-        if  self.position[1] < other[1]:
-            return '4' # RIGHT
-        
-        
-        
-        
-        
-        
-=======
         """
         Recibe una coordenada objetivo 'other' (x,y) y devuelve un código de dirección entero:
         2 = UP, 3 = DOWN, 0 = LEFT, 1 = RIGHT
@@ -367,4 +326,3 @@ class Ia:
 
         # Si ya estamos en la misma celda
         return None
->>>>>>> Stashed changes

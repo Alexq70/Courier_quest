@@ -72,6 +72,13 @@ class controller_game:
         
     def get_last_job(self):
         return self.game_service.get_last_job()
+    
+    def set_last_job_ia(self, job):
+        self.game_service.set_last_job(job)
+    
+    def get_last_job_ia(self):
+          return self.game_service.get_last_job_ia()
+        
 
     def load_world(self):
         # 1) Mapa

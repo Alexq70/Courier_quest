@@ -32,6 +32,7 @@ class GameService:
         self.courier = courier
         self.ia = ia
         self.last_job = self.job_example
+        self.last_job_ia = self.job_example
         self._bind_jobs_to_session(self.jobs)
         if hasattr(self.job_example, "bind_session_start"):
             self.job_example.bind_session_start(self.session_start)
@@ -98,29 +99,33 @@ class GameService:
     #---------------------- IA LOGIC -------------------------------
     def job_most_nearly_ia(self, ia_position):
         """Busca el job mas cercano a la posicion de la ia."""
-        candidates = list(self.jobs) + list(self.courier.inventory.get_all())
+        candidates = list(self.jobs) + list(self.ia.inventory.get_all())
         if not candidates:
             return None
-        
-        return self.ia.next_movement_ia(candidates)
-    
-    def _next_movement_ia(self):
-        return self.ia.next_movement_ia
-        
-        
 
-    def next_job_ia(self):
-        return 
-    
-    #---------------------- IA LOGIC -------------------------------
-    def job_most_nearly_ia(self, ia_position):
-        """Busca el job mas cercano a la posicion de la ia."""
-        candidates = list(self.jobs) + list(self.courier.inventory.get_all())
-        if not candidates:
-            return None
-        
-        return self.ia.next_movement_ia(candidates)
+        nearest: Job | None = None
+        min_dist = float("inf")
+
+        for job in candidates:
+            if job in self.ia.inventory.get_all():
+                dist = self.distance(job.dropoff, ia_position)
+            else:
+                dist = self.distance(job.pickup, ia_position)
+
+            if dist <= 5 and dist < min_dist:
+                nearest = job
+                min_dist = dist
+
+        return nearest
     
     def _next_movement_ia(self):
-        return self.ia.next_movement_ia
+        return self.ia.next_movement_ia()
+    
+    def get_last_job_ia(self):
+        """Devuelve el ultimo trabajo tomado de la IA."""
+        return self.last_job_ia
+
+    def set_last_job_ia(self, job):
+        """Actualiza el ultimo trabajo tomado de la IA."""
+        self.last_job_ia = job
         

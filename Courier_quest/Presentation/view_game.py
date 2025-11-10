@@ -105,6 +105,7 @@ class View_game:
         self.pause_index = 0
         self.pause_feedback = ""
         self.prev = None
+        self.prev_ia = None
         self.pause_feedback_time = 0.0
         self.return_to_menu = False
         self.exit_game = False
@@ -802,49 +803,12 @@ class View_game:
             courier = self.engine.courier
             if dx == 0 and dy == 0 and courier.stamina < courier.stamina_max:
                 courier.recover_stamina(1.0) 
-<<<<<<< Updated upstream
-                
-            self._update_ia(dt)
-                
-    def _update_ia(self,dt : float):
-        next_movement = self.engine.ia.next_movement_ia()
-        self.move_timer += dt
-        
-        if self.move_timer >= self.move_delay:
-            self._pickup_job()
-            dx = dy = 0 
-            if next_movement[0] == 2 :
-                dy = -1
-                self.current_direction = 2  
-            elif next_movement[0] == 3:
-                dy = 1
-                self.current_direction = 3  
-            
-            if next_movement[0] == 4:
-                dx = -1
-                self.current_direction = 4  
-            elif next_movement[0] == 5:
-                dx = 1
-                self.current_direction = 5 
-                
-    def _movement_ia(self, dt: float): 
-     self.move_timer += dt
-     if self.move_timer >= self.move_delay:
-        info_ia = self.engine.ia.next_movement_ia()
-        dx = dy = info_ia[1]
-        self._pickup_job() 
-        
-        if dx or dy:
-            self._move_ia(dx, dy,True)
-            self.move_timer = 0  
-=======
                 
                 
     def _update_ia(self, dt: float):
         """Actualiza movimiento de la IA con control de tiempo."""
         jobs = self.engine.jobs
         next_movement = self.engine.ia.next_movement_ia(jobs)
->>>>>>> Stashed changes
 
         # acumula tiempo del movimiento IA
         #   Tuve que usar su propio mover timer y delay por que sino anda todo loco
@@ -873,7 +837,6 @@ class View_game:
             dy = target_y - ia_y
 
             self.engine.move_ia(dx, dy)
-            self._pickup_job_ia()
             
             if not self.player_interacting:
                 self._pickup_job_ia()
@@ -885,7 +848,7 @@ class View_game:
         if self.move_timer >= self.move_delay:
             info_ia = self.engine.ia.next_movement_ia(jobs)
             dx = dy = info_ia[1]
-            self._pickup_job() 
+            self._pickup_job_ia() 
             
             if dx or dy:
                 self._move_ia(dx, dy,True)
@@ -1334,6 +1297,8 @@ class View_game:
 
     def _draw_jobs(self): 
         curr_job  = self.engine.get_last_job()
+        curr_job_ia = self.engine.get_last_job_ia()
+        
         if curr_job is not None:
             if curr_job.dropoff != (0,0) and self.prev is not None:
                 x1,y1 = curr_job.dropoff
@@ -1347,9 +1312,23 @@ class View_game:
             x, y = job.dropoff 
             self.engine.city_map.tiles[y][x]="D"
             
+        # parte de la IA
+        if curr_job_ia is not None:
+            if curr_job_ia.dropoff != (0,0) and self.prev_ia is not None:
+                x1,y1 = curr_job_ia.dropoff
+                self.engine.city_map.tiles[y1][x1] = self.prev_ia
+       # se puede hacer que se imprima solo la promera vez
+        for job in self.engine.jobs:
+            x, y = job.pickup
+            img = self.tile_images.get("PE")
+            self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+        for job in self.engine.ia.inventory.get_all():
+            x, y = job.dropoff 
+            self.engine.city_map.tiles[y][x]="D"
+            
 
 
-    def _update_job(self, job: Job, job_ia : Job):
+    def _update_job(self, job: Job):
         """Gestiona aceptacion, cancelacion y entrega del pedido cercano."""
         keys = pygame.key.get_pressed()
         courier_ref = self.engine.courier
@@ -1409,34 +1388,15 @@ class View_game:
                 else:
                     self.play_Sound("error",0)
                     
-<<<<<<< Updated upstream
-        self._update_job_ia(job_ia)
-                    
-    def _update_job_ia(self,jobs):
-        """Gestiona aceptacion, cancelacion y entrega del pedido cercano."""
+    def _update_job_ia(self, jobs : Job):
+        """Gestiona aceptación y entrega del pedido cercano."""
         
-        if jobs is not None:
-            if jobs not in self.engine.ia.inventory.get_all():  # aÃºn no tomado
-                if self.engine.courier.pick_job(jobs):
-                    x,y = jobs.dropoff 
-                    self.prev = self.engine.city_map.tiles[y][x] # saca la posicion de donde se va anetregar a ver de que tipo es ante de actualizarlo
-                    self.engine.jobs.remove(jobs)  # lo sacamos de la lista global
-                    self.play_Sound("catch",0)
-                else:
-                   self.play_Sound("error",0)
-      
-                    
-
-        
-=======
-    def _update_job_ia(self, jobs):
-        """Gestiona aceptación, cancelación y entrega del pedido cercano."""
         if jobs is not None:
             if jobs not in self.engine.ia.inventory.get_all():  # aún no tomado
-                if self.engine.courier.pick_job(jobs):
+                if self.engine.ia.pick_job(jobs):
                     x, y = jobs.dropoff
                     # Guarda el tile anterior para saber qué hay en el destino
-                    self.prev = self.engine.city_map.tiles[y][x]
+                    self.prev_ia = self.engine.city_map.tiles[y][x]
 
                     # Protección: evitar crash si el pedido ya fue removido
                     if jobs in self.engine.jobs:
@@ -1447,7 +1407,6 @@ class View_game:
                     self.play_Sound("catch", 0)
                 else:
                     self.play_Sound("error", 0)           
->>>>>>> Stashed changes
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
@@ -1588,15 +1547,10 @@ class View_game:
             
             
     def _pickup_job_ia(self):
-        self._update_job(self.engine.job_nearly(), self.engine.job_nearly())
+        self._update_job_ia(self.engine.job_nearly_ia())
     
     def _pickup_job(self):
-<<<<<<< Updated upstream
-        self._update_job(self.engine.job_nearly(), self.engine.job_nearly_ia())
-=======
-        self._update_job(self.engine.job_nearly(), self.engine.job_nearly())
->>>>>>> Stashed changes
-
+        self._update_job(self.engine.job_nearly())
     
     def _draw_inventory(self):
        if not getattr(self, "show_inventory", False):
