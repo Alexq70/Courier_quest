@@ -13,7 +13,7 @@ class Ia:
         - resistencia (energía), carga, inventario y entregas
     """
 
-    def __init__(self, start_pos: Tuple[int, int], max_weight: float):
+    def __init__(self, start_pos: Tuple[int, int], max_weight: float, city_map=None):
         self.position: Tuple[int, int] = start_pos
         self.max_weight: float = max_weight
         self.current_load: float = 0.0
@@ -28,6 +28,7 @@ class Ia:
         self.defeat_reason: Optional[str] = None  # motivo de derrota si ocurre
         self.mode_deliver = None
         self.prev = None
+        self.city_map=city_map
 
         # Resistencia
         self.stamina_max: float = 100.0
@@ -195,27 +196,41 @@ class Ia:
             return True
         return False
     
+    def _is_valid_position(self, x, y):
+        """Verifica si (x,y) es una calle ('C') y no edificio."""
+        if 0 <= x < 29 and 0 <= y < 29 and self.city_map is not None:
+            try:
+                if hasattr(self.city_map, 'tiles'):
+                    return self.city_map.tiles[y][x] == 'C'
+                elif hasattr(self.city_map, 'get_tile'):
+                    return self.city_map.get_tile(x, y) == 'C'
+                else:
+                    return self.city_map[y][x] == 'C'
+            except Exception:
+                return False
+        return False
+
     
-    def next_movement_ia(self,jobs):
-        """
-        Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
-        """
-        options = (self.easy_mode(jobs),self.medium_mode(jobs),self.hard_mode(jobs)) # tupla con las opciones de recorrido
-        tupla = [None,None] # tupla que va a retornar (movimiento,coordenada)
-        
-        if self.mode_deliver == 1:   #Facil
-            tupla[0] = self.obtain_movement(options[0]) # le mandamos la coordenada nueva
-            tupla[1] = options[0]
-            
-        if self.mode_deliver == 2:   #Medio
-            tupla[0] = self.obtain_movement(options[1]) # le mandamos la coordenada nueva
-            tupla[1] = options[1]
-        
-        if self.mode_deliver == 3:    #Dificil
-            tupla[0] = self.obtain_movement(options[2]) # le mandamos la coordenada nueva
-            tupla[1] = options[2]
-            
-        return tupla # tupla con el movimiento para el view y la coordenada
+    def next_movement_ia(self, jobs, city_map=None):
+        options = (
+            self.easy_mode(jobs, city_map),
+            self.medium_mode(jobs, city_map),
+            self.hard_mode(jobs, city_map)
+        )
+
+        ret = [None, None]
+
+        if self.mode_deliver == 1:
+            ret[0] = self.obtain_movement(options[0])
+            ret[1] = options[0]
+        elif self.mode_deliver == 2:
+            ret[0] = self.obtain_movement(options[1])
+            ret[1] = options[1]
+        elif self.mode_deliver == 3:
+            ret[0] = self.obtain_movement(options[2])
+            ret[1] = options[2]
+
+        return ret
     
     def set_mode(self,mode):
         """
@@ -224,114 +239,191 @@ class Ia:
         self.mode_deliver = mode
         return
 
-    def easy_mode(self, jobs):
-        """
-        Modo fácil:
-        La IA se mueve aleatoriamente pero con tendencia hacia el pickup o dropoff.
-        """
-
+    def easy_mode(self, jobs, city_map=None):
         current_x, current_y = self.position
 
-        # Si hay jobs disponibles
+        job = None
         if jobs:
+            job = self.prev if self.prev else random.choice(jobs)
 
-            # Elegir job actual: si prev existe, es el objetivo
-            job = self.prev if self.prev is not None else random.choice(jobs)
-
-            job_x = job_y = None
-
-            # --- Si YA lo tiene → ir al DROPOFF ---
+        target = None
+        if job:
             if job in self.inventory.get_all():
-                if hasattr(job, "dropoff_position") and job.dropoff_position:
-                    job_x, job_y = job.dropoff_position
-                elif hasattr(job, "dropoff") and job.dropoff:
-                    job_x, job_y = job.dropoff
-                elif hasattr(job, "get_dropoff_position"):
-                    job_x, job_y = job.get_dropoff_position()
-
-            # --- Si NO lo tiene → ir al PICKUP ---
+                target = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
             else:
-                if hasattr(job, "pickup_position") and job.pickup_position:
-                    job_x, job_y = job.pickup_position
-                elif hasattr(job, "pickup") and job.pickup:
-                    job_x, job_y = job.pickup
-                elif hasattr(job, "get_pickup_position"):
-                    job_x, job_y = job.get_pickup_position()
+                target = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
 
-            # --- Movimiento con tendencia hacia objetivo ---
-            if job_x is not None and job_y is not None:
-                dx = dy = 0
+        # Movimiento dirigido
+        if target:
+            tx, ty = target
+            dx = 1 if tx > current_x else -1 if tx < current_x else 0
+            dy = 1 if ty > current_y else -1 if ty < current_y else 0
 
-                if job_x > current_x: dx = 1
-                elif job_x < current_x: dx = -1
-                elif job_y > current_y: dy = 1
-                elif job_y < current_y: dy = -1
+            if random.random() < 0.9:
+                nx, ny = current_x + dx, current_y + dy
+                if self._is_valid_position(nx, ny) and (nx, ny) != self.prev:
+                    return (nx, ny)
 
-                if random.random() < 0.4:
-                    return (current_x + dx, current_y + dy)
+        # Movimiento aleatorio seguro
+        directions = [(-1,0),(1,0),(0,-1),(0,1)]
+        random.shuffle(directions)
 
-        # Movimiento aleatorio si no hay objetivo o fallo
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-        dx, dy = random.choice(directions)
-        return (current_x + dx, current_y + dy)
+        for dx, dy in directions:
+            nx, ny = current_x + dx, current_y + dy
+            if self._is_valid_position(nx, ny) and (nx, ny) != self.prev:
+                return (nx, ny)
 
-    def medium_mode(self,jobs):
-        """
-        PRUEBA-Modo medio:
-        Movimiento aleatorio
-        """
+        return (current_x, current_y)
 
-        # Direcciones posibles: izquierda, derecha, arriba, abajo
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-
-        # Escoge una dirección aleatoria
-        dx, dy = random.choice(directions)
-
-        # Obtiene posición actual
+    def medium_mode(self, jobs, city_map=None):
         current_x, current_y = self.position
 
-        # Calcula nueva posición
-        new_x = current_x + dx
-        new_y = current_y + dy
+        if not jobs:
+            return self.easy_mode(jobs, city_map)
 
-        # Retorna la nueva posición
-        return (new_x, new_y)
-            
-            
-    def hard_mode(self, jobs):
-        """
-        Modo difícil:
-        Igual mecánica que el easy_mode, pero elige el mejor movimiento
-        evaluando las 4 direcciones y escogiendo la que más reduce distancia
-        al objetivo (sin usar mapa ni engine).
-        """
+        best = None
+        best_dist = float("inf")
 
-        return
+        for job in jobs:
+            if job in self.inventory.get_all():
+                tx, ty = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
+            else:
+                tx, ty = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
+
+            if tx is None or ty is None:
+                continue
+
+            d = abs(tx - current_x) + abs(ty - current_y)
+            if d < best_dist:
+                best = (tx, ty)
+                best_dist = d
+
+        if best is None:
+            return self.easy_mode(jobs, city_map)
+
+        tx, ty = best
+
+        candidates = []
+        if tx > current_x: candidates.append((current_x+1, current_y))
+        if tx < current_x: candidates.append((current_x-1, current_y))
+        if ty > current_y: candidates.append((current_x, current_y+1))
+        if ty < current_y: candidates.append((current_x, current_y-1))
+
+        # Elegir candidato válido
+        for nx, ny in candidates:
+            if self._is_valid_position(nx, ny) and (nx, ny) != self.prev:
+                return (nx, ny)
+
+        return self.easy_mode(jobs, city_map)
+
+    def hard_mode(self, jobs, city_map=None):
+        current = self.position
+
+        # Seleccionar job objetivo
+        if self.prev:
+            target_job = self.prev
+        else:
+            target_job = None
+            best_dist = float("inf")
+            for job in jobs:
+                if job in self.inventory.get_all():
+                    tx, ty = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
+                else:
+                    tx, ty = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
+
+                if tx is None or ty is None: continue
+
+                d = abs(tx - current[0]) + abs(ty - current[1])
+                if d < best_dist:
+                    best_dist = d
+                    target_job = job
+
+        if not target_job:
+            return self.medium_mode(jobs, city_map)
+
+        if target_job in self.inventory.get_all():
+            target = getattr(target_job, "dropoff_position", None) or getattr(target_job, "dropoff", None)
+        else:
+            target = getattr(target_job, "pickup_position", None) or getattr(target_job, "pickup", None)
+
+        if not target:
+            return self.medium_mode(jobs, city_map)
+
+        if city_map is None:
+            return self.medium_mode(jobs, city_map)
+
+        # A*
+        path = self.astar(start=current, goal=target, city_map=city_map)
+
+        if path and len(path) >= 2:
+            nxt = path[1]
+            if nxt == self.prev and len(path) >= 3:
+                nxt = path[2]
+
+            if self._is_valid_position(nxt[0], nxt[1]):
+                return nxt
+
+        return self.medium_mode(jobs, city_map)
+
+    # ---------- utilidades para hard_mode ----------
+    def _neighbors(self, node, city_map):
+        x, y = node
+        cand = [(x-1,y),(x+1,y),(x,y-1),(x,y+1)]
+        valid = []
+
+        for nx, ny in cand:
+            if self._is_valid_position(nx, ny):
+                valid.append((nx, ny))
+
+        return valid
+
+
+    def astar(self, start, goal, city_map, max_nodes=6000):
+        import heapq
+
+        def h(a, b): return abs(a[0]-b[0]) + abs(a[1]-b[1])
+
+        open_heap = []
+        heapq.heappush(open_heap, (0, start))
+        came_from = {start: None}
+        g = {start: 0}
+
+        processed = 0
+
+        while open_heap and processed < max_nodes:
+            _, current = heapq.heappop(open_heap)
+            processed += 1
+
+            if current == goal:
+                path = []
+                c = current
+                while c:
+                    path.append(c)
+                    c = came_from[c]
+                path.reverse()
+                return path
+
+            for nb in self._neighbors(current, city_map):
+                tentative = g[current] + 1
+                if tentative < g.get(nb, float("inf")):
+                    came_from[nb] = current
+                    g[nb] = tentative
+                    f = tentative + h(nb, goal)
+                    heapq.heappush(open_heap, (f, nb))
+
+        return None
 
 
     def obtain_movement(self, other):
-        """
-        Recibe una coordenada objetivo 'other' (x,y) y devuelve un código de dirección entero:
-        2 = UP, 3 = DOWN, 0 = LEFT, 1 = RIGHT
-        Si other es None, retorna None.
-        """
         if other is None:
             return None
 
-        # asegurarnos que other tiene formato (x,y)
-        try:
-            ox, oy = int(other[0]), int(other[1])
-        except Exception:
-            return None
+        ox, oy = other
+        cx, cy = self.position
 
-        if self.position[0] > ox:
-            return 2  # UP
-        if self.position[0] < ox:
-            return 3  # DOWN
-        if self.position[1] > oy:
-            return 0  # LEFT
-        if self.position[1] < oy:
-            return 1  # RIGHT
+        if oy < cy: return 2   # UP
+        if oy > cy: return 3   # DOWN
+        if ox < cx: return 0   # LEFT
+        if ox > cx: return 1   # RIGHT
 
-        # Si ya estamos en la misma celda
         return None

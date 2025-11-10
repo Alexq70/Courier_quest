@@ -50,7 +50,7 @@ class View_game:
         self.current_direction = 1  
         
         self.ia_move_timer=0.0
-        self.ia_move_delay=0.3
+        self.ia_move_delay=0.15
         self.current_direction_ia = 1 
         
         
@@ -809,7 +809,7 @@ class View_game:
     def _update_ia(self, dt: float):
         """Actualiza movimiento de la IA con control de tiempo."""
         jobs = self.engine.jobs
-        next_movement = self.engine.ia.next_movement_ia(jobs)
+        next_movement = self.engine.ia.next_movement_ia(jobs, self.engine.city_map)
         
 
         # acumula tiempo del movimiento IA

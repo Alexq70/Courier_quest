@@ -120,7 +120,7 @@ class controller_game:
 
         # 4) Courier
         self.courier = Courier(start_pos=(0, 0), max_weight=10)
-        self.ia = Ia(start_pos=(0,0), max_weight=10)
+        self.ia = Ia(start_pos=(0, 0), max_weight=10,city_map=self.city_map)
         print(f"Courier inicializado{self.courier.position}  e IA inicializada {self.ia.position}.")
 
     def _generate_initial_bursts(self):
