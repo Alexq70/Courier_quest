@@ -1,7 +1,14 @@
 [
   {
+<<<<<<< HEAD
     "total_points": 1729.696,
     "base_income": 1568.5,
+=======
+<<<<<<< HEAD
+    "player_name": "a",
+    "total_points": 1736.432,
+    "base_income": 1566.5,
+>>>>>>> f4dc088 (agarra pedidos)
     "penalties": 0.0,
     "time_bonus": 161.1959999999999,
     "earned": 1568.5,
@@ -29,6 +36,7 @@
     "reason": "total_earned"
   },
   {
+<<<<<<< HEAD
     "player_name": "Joker",
     "total_points": 1614.645,
     "base_income": 1670.0,
@@ -47,6 +55,13 @@
     "player_name": "alex",
     "total_points": 1606.6276000000003,
     "base_income": 1507.5,
+=======
+=======
+>>>>>>> 7300a56 (agarra pedidos)
+    "player_name": "Alex",
+    "total_points": 1638.0128,
+    "base_income": 1549.5,
+>>>>>>> f4dc088 (agarra pedidos)
     "penalties": 75.0,
     "time_bonus": 174.1276000000002,
     "earned": 1507.5,
