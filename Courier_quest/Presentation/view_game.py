@@ -20,6 +20,7 @@ CELL_SIZE = 20
 HUD_HEIGHT = 75
 FPS = 60
 prev = ''
+prev_ia = ''
 
 class View_game:
     """Interfaz grÃ¡fica con Pygame para Courier Quest.""" 
@@ -809,6 +810,7 @@ class View_game:
         """Actualiza movimiento de la IA con control de tiempo."""
         jobs = self.engine.jobs
         next_movement = self.engine.ia.next_movement_ia(jobs)
+        
 
         # acumula tiempo del movimiento IA
         #   Tuve que usar su propio mover timer y delay por que sino anda todo loco
@@ -1390,6 +1392,8 @@ class View_game:
                     
     def _update_job_ia(self, jobs : Job):
         """Gestiona aceptación y entrega del pedido cercano."""
+        ia_ref = self.engine.ia
+        score_manager = getattr(self.engine, "score_manager", None)
         
         if jobs is not None:
             if jobs not in self.engine.ia.inventory.get_all():  # aún no tomado
@@ -1397,6 +1401,7 @@ class View_game:
                     x, y = jobs.dropoff
                     # Guarda el tile anterior para saber qué hay en el destino
                     self.prev_ia = self.engine.city_map.tiles[y][x]
+                    self.engine.ia.prev = x,y
 
                     # Protección: evitar crash si el pedido ya fue removido
                     if jobs in self.engine.jobs:
@@ -1406,7 +1411,21 @@ class View_game:
 
                     self.play_Sound("catch", 0)
                 else:
-                    self.play_Sound("error", 0)           
+                    self.play_Sound("error", 0)       
+                    
+        if self.engine.ia.prev is not None and jobs is not None:
+            if jobs in ia_ref.inventory.get_all():
+                next_job = ia_ref.inventory.peek_next()
+                if next_job == jobs:
+                    self.engine.set_last_job_ia(jobs)
+                    self.play_Sound("acept",0)
+                   # delivery_result = ia_ref.deliver_job(jobs)
+                   # if score_manager is not None:
+                   #     score_manager.register_delivery(jobs, delivery_result)
+                   # earned_delta = float(delivery_result.get("payout_applied", getattr(jobs, "payout", 0.0)))
+                   # self.earned += earned_delta
+                else:
+                    self.play_Sound("error",0)     
 
     def _draw_courier(self):
         x, y = self.engine.courier.position

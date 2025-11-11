@@ -27,6 +27,7 @@ class Ia:
         self.first_late_penalty_reduced = False  # control de tardanza reducida
         self.defeat_reason: Optional[str] = None  # motivo de derrota si ocurre
         self.mode_deliver = None
+        self.prev = None
 
         # Resistencia
         self.stamina_max: float = 100.0
@@ -232,22 +233,37 @@ class Ia:
 
         current_x, current_y = self.position
 
-        # --- 1. Si existen pedidos ---
+        # --- 1. Si existen pedidos ---s
         if jobs:
-            # Selecciona un pedido al azar
-            job = random.choice(jobs)
+             if self.prev is not None:
+                job = self.prev
+             else:
+                job = random.choice(jobs)
+                
+             if self.prev is not None:
+                 # Intenta obtener la posición del pedido
+                job_x = job_y = None
+                if hasattr(job, "dropoff_position"):
+                   job_x, job_y = job.dropoff_position
+                elif hasattr(job, "dropoff"):
+                   job_x, job_y = job.dropoff
+                elif hasattr(job, "get_dropoff_position"):
+                   job_x, job_y = job.get_dropoff_position()
+             else:
+                # Selecciona un pedido al azar
+               job = random.choice(jobs)
 
-            # Intenta obtener la posición del pedido
-            job_x = job_y = None
-            if hasattr(job, "pickup_position"):
-                job_x, job_y = job.pickup_position
-            elif hasattr(job, "pickup"):
-                job_x, job_y = job.pickup
-            elif hasattr(job, "get_pickup_position"):
-                job_x, job_y = job.get_pickup_position()
+               # Intenta obtener la posición del pedido
+               job_x = job_y = None
+               if hasattr(job, "pickup_position"):
+                   job_x, job_y = job.pickup_position
+               elif hasattr(job, "pickup"):
+                   job_x, job_y = job.pickup
+               elif hasattr(job, "get_pickup_position"):
+                   job_x, job_y = job.get_pickup_position()
 
             # --- 2. Movimiento con tendencia al pedido ---
-            if job_x is not None and job_y is not None:
+             if job_x is not None and job_y is not None:
                 dx = dy = 0
 
                 # Se mueve un paso hacia el pedido
