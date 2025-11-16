@@ -1,5 +1,6 @@
 
 import time
+import random  
 from typing import Tuple, List, Optional
 from Logic.entity.job import Job
 from Logic.entity.inventory import Inventory
@@ -195,23 +196,36 @@ class Ia:
             return True
         return False
     
+    def _get_job_dropoff_position(self, job):
+        """Siempre retorna posición de DROPOFF (entrega)"""
+        if hasattr(job, "dropoff_position"):
+            return job.dropoff_position
+        elif hasattr(job, "dropoff"):
+            return job.dropoff
+        elif hasattr(job, "get_dropoff_position"):
+            return job.get_dropoff_position()
+        else:
+            return (0, 0)  # Fallback seguro
     
-    def next_movement_ia(self,jobs):
+    def next_movement_ia(self, job):
         """
-        Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
+        Recibe un job individual y retorna el próximo movimiento que va a hacer en la vista la ia
         """
-        options = (self.easy_mode(jobs),self.medium_mode(jobs),self.hard_mode(jobs)) # tupla con las opciones de recorrido
-        tupla = [None,None] # tupla que va a retornar (movimiento,coordenada)
+        options = (self.easy_mode(job), self.medium_mode(job), self.hard_mode(job)) # tupla con las opciones de recorrido
+        tupla = [None, None] # tupla que va a retornar (movimiento, coordenada)
         
-        if self.mode_deliver == 1:   #Facil
+        if self.stamina == 0:
+            return [0, 0]
+            
+        if self.mode_deliver == 1:   # Fácil
             tupla[0] = self.obtain_movement(options[0]) # le mandamos la coordenada nueva
             tupla[1] = options[0]
             
-        if self.mode_deliver == 2:   #Medio
+        if self.mode_deliver == 2:   # Medio
             tupla[0] = self.obtain_movement(options[1]) # le mandamos la coordenada nueva
             tupla[1] = options[1]
         
-        if self.mode_deliver == 3:    #Dificil
+        if self.mode_deliver == 3:    # Difícil
             tupla[0] = self.obtain_movement(options[2]) # le mandamos la coordenada nueva
             tupla[1] = options[2]
             
@@ -224,63 +238,44 @@ class Ia:
         self.mode_deliver = mode
         return
 
-    def easy_mode(self, jobs):
+    def easy_mode(self, job):
         """
-        Modo fácil:
-        El jugador CPU (IA) se mueve de forma aleatoria,
-        pero con una ligera tendencia a avanzar hacia un pedido cercano.
+        Modo fácil CORREGIDO: Trabaja con job individual
+        - Si tiene el job en inventario, va al DROPOFF
+        - Si no tiene el job, va al PICKUP
+        - Lógica clara y simple con random choice
         """
-
         current_x, current_y = self.position
 
-        # --- 1. Si existen pedidos ---s
-        if jobs:
-             if self.prev is not None:
-                job = self.prev
-             else:
-                job = random.choice(jobs)
-                
-             if self.prev is not None:
-                 # Intenta obtener la posición del pedido
-                job_x = job_y = None
-                if hasattr(job, "dropoff_position"):
-                   job_x, job_y = job.dropoff_position
-                elif hasattr(job, "dropoff"):
-                   job_x, job_y = job.dropoff
-                elif hasattr(job, "get_dropoff_position"):
-                   job_x, job_y = job.get_dropoff_position()
-             else:
-                # Selecciona un pedido al azar
-               job = random.choice(jobs)
-
-               # Intenta obtener la posición del pedido
-               job_x = job_y = None
-               if hasattr(job, "pickup_position"):
-                   job_x, job_y = job.pickup_position
-               elif hasattr(job, "pickup"):
-                   job_x, job_y = job.pickup
-               elif hasattr(job, "get_pickup_position"):
-                   job_x, job_y = job.get_pickup_position()
-
-            # --- 2. Movimiento con tendencia al pedido ---
-             if job_x is not None and job_y is not None:
+        # --- 1. Si hay job disponible, moverse hacia él ---
+        if job is not None:
+            # ✅ CORREGIDO: Si ya tiene el job en inventario, ir al DROPOFF
+            if job in self.inventory.get_all():
+                # Ir a la posición de ENTREGA (DROPOFF)
+                job_x, job_y = self._get_job_dropoff_position(job)
+            else:
+                # Ir a la posición de RECOGIDA (PICKUP)
+                job_x, job_y = self._get_job_pickup_position(job)
+            
+            if job_x is not None and job_y is not None:
                 dx = dy = 0
 
-                # Se mueve un paso hacia el pedido
+                # Movimiento hacia el objetivo (PICKUP o DROPOFF)
                 if job_x > current_x:
                     dx = 1
                 elif job_x < current_x:
                     dx = -1
-                elif job_y > current_y:
+                    
+                if job_y > current_y:
                     dy = 1
                 elif job_y < current_y:
                     dy = -1
 
-                # 50% de probabilidad de moverse hacia el pedido
-                if random.random() < 0.5:
+                # 70% de probabilidad de moverse hacia el pedido, 30% aleatorio
+                if random.random() < 0.7:
                     return (current_x + dx, current_y + dy)
 
-        # --- 3. Movimiento aleatorio puro ---
+        # --- 2. Movimiento aleatorio ---
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         dx, dy = random.choice(directions)
         new_x = current_x + dx

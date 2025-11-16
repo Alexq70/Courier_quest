@@ -65,7 +65,8 @@ class controller_game:
         return self.game_service.job_most_nearly(self.courier.position)
     
     def job_nearly_ia(self):
-            return self.game_service.job_most_nearly_ia(self.ia.position)
+     """Obtiene el job más cercano para la IA, excluyendo los del jugador."""
+     return self.game_service.job_most_nearly_ia(self.ia.position)
     
     def set_last_job(self, job):
         self.game_service.set_last_job(job)
@@ -144,7 +145,7 @@ class controller_game:
         print("Juego iniciado correctamente.")
 
     def update(self):
-        """Mtodo principal de actualizacin del juego (llamar en cada frame)."""
+        """Método principal de actualización del juego (llamar en cada frame)."""
         current_time = time.time()
 
         if len(self.jobs) <= 0 and len(self.courier.inventory.get_all()) <= 0:
@@ -153,7 +154,9 @@ class controller_game:
         if current_time - self.last_weather_update >= self.weather_update_interval:
             self._update_weather()
             self.last_weather_update = current_time
+            # ✅ Sincronizar clima con AMBOS: jugador y IA
             self.courier.weather = self.weather_simulator.current_condition
+            self.ia.weather = self.weather_simulator.current_condition 
 
     def _update_weather(self):
         """Actualiza el estado del clima."""

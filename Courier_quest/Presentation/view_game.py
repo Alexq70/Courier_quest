@@ -1,4 +1,5 @@
 import sys
+import random 
 import math
 import time
 import json
@@ -807,59 +808,77 @@ class View_game:
                 
                 
     def _update_ia(self, dt: float):
-        """Actualiza movimiento de la IA con control de tiempo."""
-        jobs = self.engine.jobs
-        next_movement = self.engine.ia.next_movement_ia(jobs)
+        """Actualiza movimiento de la IA con control de tiempo y recuperación de stamina."""
+        # Obtener el job más cercano para la IA
+        nearest_job = self.engine.job_nearly_ia()
         
+        # ✅ CORREGIDO: Pasar el job individual en lugar de la lista completa
+        next_movement = self.engine.ia.next_movement_ia(nearest_job)
+        
+        # ✅ Verificación de seguridad
+        if next_movement is None or next_movement[0] is None:
+            return
 
-        # acumula tiempo del movimiento IA
-        #   Tuve que usar su propio mover timer y delay por que sino anda todo loco
         self.ia_move_timer += dt
+
+        # ✅ Inicializar dx y dy fuera del bloque if
+        dx = dy = 0
+        moved_this_frame = False
 
         if self.ia_move_timer >= self.ia_move_delay:
             self.ia_move_timer = 0.0
 
-            dx = dy = 0
-            if next_movement[0] == 2:
+            # ✅ SOLO usar lógica de dirección (1 celda por movimiento)
+            direction = next_movement[0]
+            
+            if direction == 2:    # UP
                 dy = -1
                 self.current_direction_ia = 2
-            elif next_movement[0] == 3:
-                dy = 1
+            elif direction == 3:  # DOWN
+                dy = 1  
                 self.current_direction_ia = 3
-            elif next_movement[0] == 4:
+            elif direction == 0:  # LEFT
+                dx = -1
+                self.current_direction_ia = 0
+            elif direction == 1:  # RIGHT
+                dx = 1
+                self.current_direction_ia = 1
+            elif direction == 4:  # WHEELIE LEFT
                 dx = -1
                 self.current_direction_ia = 4
-            elif next_movement[0] == 5:
+            elif direction == 5:  # WHEELIE RIGHT
                 dx = 1
                 self.current_direction_ia = 5
 
-            ia_x, ia_y = self.engine.ia.position
-            target_x, target_y = next_movement[1]
-            dx = target_x - ia_x
-            dy = target_y - ia_y
+            # ✅ MOVER solo si hay dirección válida
+            if dx != 0 or dy != 0:
+                self.engine.move_ia(dx, dy)
+                moved_this_frame = True
+                    
+                # ✅ Interacción con jobs
+                if not self.player_interacting:
+                    self._pickup_job_ia()
 
-            self.engine.move_ia(dx, dy)
-            
-            if not self.player_interacting:
-                self._pickup_job_ia()
+            # ✅ Evitar que se pegue en esquinas - movimiento aleatorio ocasional
+            # ✅ CORREGIDO: Usar random importado
+            if random.random() < 0.1:  # 10% de probabilidad de movimiento extra para evitar atascos
+                extra_directions = [0, 1, 2, 3]
+                extra_direction = random.choice(extra_directions)
+                if extra_direction == 2:    # UP
+                    self.engine.move_ia(0, -1)
+                elif extra_direction == 3:  # DOWN
+                    self.engine.move_ia(0, 1)
+                elif extra_direction == 0:  # LEFT
+                    self.engine.move_ia(-1, 0)
+                elif extra_direction == 1:  # RIGHT
+                    self.engine.move_ia(1, 0)
 
-    def _movement_ia(self, dt: float): 
-        jobs = self.engine.jobs
-        self.move_timer += dt
-        
-        if self.move_timer >= self.move_delay:
-            info_ia = self.engine.ia.next_movement_ia(jobs)
-            dx = dy = info_ia[1]
-            self._pickup_job_ia() 
-            
-            if dx or dy:
-                self._move_ia(dx, dy,True)
-                self.move_timer = 0  
+        # ✅ NUEVO: Recuperar stamina de la IA cuando no se mueve
+        ia_ref = self.engine.ia
+        if not moved_this_frame and ia_ref.stamina < ia_ref.stamina_max:
+            ia_ref.recover_stamina(0.3)  # Recuperación más lenta que el jugador para balance
 
-            ia = self.engine.ia
-            if dx == 0 and dy == 0 and ia.stamina < ia.stamina_max:
-                ia.recover_stamina(1.0) 
-
+   
     def _draw(self):
         """Dibujar mapa, pedidos, courier y HUD."""
         self._draw_map()
@@ -1390,42 +1409,60 @@ class View_game:
                 else:
                     self.play_Sound("error",0)
                     
-    def _update_job_ia(self, jobs : Job):
+    def _update_job_ia(self, jobs: Job):
         """Gestiona aceptación y entrega del pedido cercano."""
         ia_ref = self.engine.ia
         score_manager = getattr(self.engine, "score_manager", None)
         
         if jobs is not None:
-            if jobs not in self.engine.ia.inventory.get_all():  # aún no tomado
+            # VERIFICACIÓN CRÍTICA: Asegurar que el job no esté en el inventario del jugador
+            player_has_job = jobs in self.engine.courier.inventory.get_all()
+            
+            if not player_has_job and jobs not in self.engine.ia.inventory.get_all():
                 if self.engine.ia.pick_job(jobs):
                     x, y = jobs.dropoff
-                    # Guarda el tile anterior para saber qué hay en el destino
                     self.prev_ia = self.engine.city_map.tiles[y][x]
-                    self.engine.ia.prev = x,y
+                    self.engine.ia.prev = x, y
 
-                    # Protección: evitar crash si el pedido ya fue removido
-                    if jobs in self.engine.jobs:
-                        self.engine.jobs.remove(jobs)  # lo sacamos de la lista global
+                    # Verificar nuevamente antes de remover (double-check)
+                    if jobs in self.engine.jobs and jobs not in self.engine.courier.inventory.get_all():
+                        self.engine.jobs.remove(jobs)
                     else:
-                        print(f"[WARN] Job {jobs} no estaba en la lista global (IA o jugador ya lo tomaron).")
+                        print(f"[WARN] Job {jobs} no disponible para IA")
 
                     self.play_Sound("catch", 0)
                 else:
-                    self.play_Sound("error", 0)       
+                    self.play_Sound("error", 0)
+            else:
+                # Job ya tomado por el jugador, buscar otro
+                pass
                     
-        if self.engine.ia.prev is not None and jobs is not None:
+        # ENTREGA DEL PEDIDO - ESTO ES LO QUE FALTABA ACTIVAR
+        if jobs is not None:
             if jobs in ia_ref.inventory.get_all():
-                next_job = ia_ref.inventory.peek_next()
-                if next_job == jobs:
+                # Verificar si la IA está en la posición de entrega
+                ia_x, ia_y = ia_ref.position
+                dropoff_x, dropoff_y = jobs.dropoff
+                
+                # Si está en la posición de entrega, entregar el pedido
+                if ia_x == dropoff_x and ia_y == dropoff_y:
                     self.engine.set_last_job_ia(jobs)
-                    self.play_Sound("acept",0)
-                   # delivery_result = ia_ref.deliver_job(jobs)
-                   # if score_manager is not None:
-                   #     score_manager.register_delivery(jobs, delivery_result)
-                   # earned_delta = float(delivery_result.get("payout_applied", getattr(jobs, "payout", 0.0)))
-                   # self.earned += earned_delta
+                    self.play_Sound("acept", 0)
+                    
+                    # ENTREGAR EL PEDIDO - CÓDIGO DESCOMENTADO
+                    delivery_result = ia_ref.deliver_job(jobs)
+                    if score_manager is not None:
+                        score_manager.register_delivery(jobs, delivery_result)
+                    
+                    # Actualizar ganancias de la IA si es necesario
+                    earned_delta = float(delivery_result.get("payout_applied", getattr(jobs, "payout", 0.0)))
+                    # Si quieres trackear ganancias separadas de la IA:
+                    # self.ia_earned += earned_delta
+                    
+                    print(f"IA entregó pedido {jobs.id} - Ganancia: {earned_delta}")
                 else:
-                    self.play_Sound("error",0)     
+                    # No está en la posición de entrega, reproducir sonido de error
+                    self.play_Sound("error", 0)     
 
     def _draw_courier(self):
         x, y = self.engine.courier.position
