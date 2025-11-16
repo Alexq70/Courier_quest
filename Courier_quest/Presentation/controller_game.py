@@ -4,6 +4,8 @@ from Logic.entity.city_map import CityMap
 from Logic.entity.job import Job
 from Logic.entity.weather_burst import WeatherBurst
 from Logic.entity.courier import Courier
+from Logic.entity.ia import Ia
+
 from Logic.weather_simulator import WeatherSimulator  
 from Logic.score_manager import ScoreManager
 import time
@@ -22,6 +24,7 @@ class controller_game:
         self.jobs = []
         self.weather = []
         self.courier = None
+        self.ia = None
         self.weather_simulator = None  # Nuevo atributo
         self.last_weather_update = 0
         self.weather_update_interval = 0.1  # Actualizar clima cada 100ms
@@ -61,11 +64,21 @@ class controller_game:
     def job_nearly(self):
         return self.game_service.job_most_nearly(self.courier.position)
     
+    def job_nearly_ia(self):
+            return self.game_service.job_most_nearly_ia(self.ia.position)
+    
     def set_last_job(self, job):
         self.game_service.set_last_job(job)
         
     def get_last_job(self):
         return self.game_service.get_last_job()
+    
+    def set_last_job_ia(self, job):
+        self.game_service.set_last_job(job)
+    
+    def get_last_job_ia(self):
+          return self.game_service.get_last_job_ia()
+        
 
     def load_world(self):
         # 1) Mapa
@@ -107,7 +120,8 @@ class controller_game:
 
         # 4) Courier
         self.courier = Courier(start_pos=(0, 0), max_weight=10)
-        print(f"Courier inicializado en {self.courier.position}")
+        self.ia = Ia(start_pos=(0,0), max_weight=10)
+        print(f"Courier inicializado{self.courier.position}  e IA inicializada {self.ia.position}.")
 
     def _generate_initial_bursts(self):
         """Genera bursts iniciales para compatibilidad con código existente"""
@@ -126,7 +140,7 @@ class controller_game:
     def start(self):
         """Arranca la carga del mundo y ejecuta el juego."""
         self.load_world()
-        self.game_service = GameService(self.jobs, self.weather, self.city_map, self.courier)
+        self.game_service = GameService(self.jobs, self.weather, self.city_map, self.courier , self.ia)
         print("Juego iniciado correctamente.")
 
     def update(self):
@@ -155,6 +169,9 @@ class controller_game:
 
     def move_courier(self, dx, dy, record_step=True):
         self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy, record_step)
+        
+    def move_ia(self, dx, dy, record_step=True):
+        self.ia.move_ia(self.city_map.width, self.city_map.height, self.city_map, dx, dy, record_step)
 
     def new_jobs(self):
         """Genera pedidos nuevos y actualiza la lista principal."""
@@ -178,4 +195,3 @@ class controller_game:
 
     def include_step(self, pos):
         self.game_service.include_new_step(pos)
-
