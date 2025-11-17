@@ -1,10 +1,16 @@
 [
   {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "total_points": 1729.696,
     "base_income": 1568.5,
 =======
 <<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> ceda01b (avance bugs)
+>>>>>>> 333a679 (avance bugs)
     "player_name": "a",
     "total_points": 1736.432,
     "base_income": 1566.5,
@@ -37,6 +43,7 @@
   },
   {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "player_name": "Joker",
     "total_points": 1614.645,
     "base_income": 1670.0,
@@ -57,7 +64,11 @@
     "base_income": 1507.5,
 =======
 =======
+>>>>>>> 333a679 (avance bugs)
+=======
 >>>>>>> 7300a56 (agarra pedidos)
+=======
+>>>>>>> ceda01b (avance bugs)
     "player_name": "Alex",
     "total_points": 1638.0128,
     "base_income": 1549.5,

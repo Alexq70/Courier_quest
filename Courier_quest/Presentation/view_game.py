@@ -1307,6 +1307,9 @@ class View_game:
 
 
         # ------ 2. DIBUJAR DROP-OFFS DEL JUGADOR ------
+
+
+        # ------ 2. DIBUJAR DROP-OFFS DEL JUGADOR ------
         for job in self.engine.courier.inventory.get_all():
             x, y = job.dropoff
             img = self.tile_images.get("D")
@@ -1321,20 +1324,6 @@ class View_game:
             if img:
                 self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
-            
-        # parte de la IA
-        if curr_job_ia is not None:
-            if curr_job_ia.dropoff != (0,0) and self.prev_ia is not None:
-                x1,y1 = curr_job_ia.dropoff
-                self.engine.city_map.tiles[y1][x1] = self.prev_ia
-       # se puede hacer que se imprima solo la promera vez
-        for job in self.engine.jobs:
-            x, y = job.pickup
-            img = self.tile_images.get("PE")
-            self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
-        for job in self.engine.ia.inventory.get_all():
-            x, y = job.dropoff 
-            self.engine.city_map.tiles[y][x]="D"
             
 
 
@@ -1400,7 +1389,11 @@ class View_game:
                     
     def _update_job_ia(self, jobs: Job):
         """Gestiona pickup y entrega de un job para la IA."""
+    def _update_job_ia(self, jobs: Job):
+        """Gestiona pickup y entrega de un job para la IA."""
         ia_ref = self.engine.ia
+
+        # ----------------- PICKUP ------------------
 
         # ----------------- PICKUP ------------------
         if jobs is not None:
@@ -1411,19 +1404,65 @@ class View_game:
 
                     # Guardamos el job como objetivo de entrega
                     ia_ref.prev = jobs  
+            # Si aún no está en inventario, intentar recogerlo
+            if jobs not in ia_ref.inventory.get_all():
 
+                if ia_ref.pick_job(jobs):
+
+                    # Guardamos el job como objetivo de entrega
+                    ia_ref.prev = jobs  
+
+                    # Sacarlo del mapa para que deje de dibujarse
                     # Sacarlo del mapa para que deje de dibujarse
                     if jobs in self.engine.jobs:
                         self.engine.jobs.remove(jobs)
+                        self.engine.jobs.remove(jobs)
                     else:
+                        print(f"[WARN] Job {jobs} no estaba en la lista global.")
                         print(f"[WARN] Job {jobs} no estaba en la lista global.")
 
                     # Sonido de pickup
+                    # Sonido de pickup
                     self.play_Sound("catch", 0)
+
 
                 else:
                     # No pudo recogerlo
                     self.play_Sound("error", 0)
+
+        # ----------------- DELIVERY ------------------
+        if jobs is not None and jobs in ia_ref.inventory.get_all():
+
+            next_job = ia_ref.inventory.peek_next()
+
+            # Posición actual IA
+            ia_x, ia_y = ia_ref.position
+
+            # Destino dropoff del job
+            drop_x, drop_y = jobs.dropoff
+
+            # Distancia Manhattan (rango flexible)
+            distance = abs(ia_x - drop_x) + abs(ia_y - drop_y)
+
+            # Si está dentro de 5 casillas del dropoff y es el job correcto
+            if next_job == jobs and distance <= 5:
+
+                # Registrar job entregado (affecta UI/score)
+                self.engine.set_last_job_ia(jobs)
+
+                # Sonido de entrega
+                self.play_Sound("acept", 0)
+
+                # Realizar entrega
+                ia_ref.deliver_job(jobs)
+
+                # Limpiar objetivo
+                ia_ref.prev = None
+
+                    
+                    
+                    # No pudo recogerlo
+                self.play_Sound("error", 0)
 
         # ----------------- DELIVERY ------------------
         if jobs is not None and jobs in ia_ref.inventory.get_all():
