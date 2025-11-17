@@ -17,6 +17,7 @@ class controller_game:
     """
 
     def __init__(self):
+        """Inicializa el controlador del juego con servicios y componentes principales."""
         self.ruta = ("C:/Users/ALEXQUESADABERMUDEZ/Documents/GitHub/Courier_quest/api_cache/city_jobs.json")
         self.api = APIService()
         self.game_service = None
@@ -33,6 +34,12 @@ class controller_game:
     def _deep_unwrap(self, resp: dict) -> dict:
         """
         Retorna la informacion mas profunda del diccionario
+        
+        Args:
+            resp: Diccionario anidado a procesar
+            
+        Returns:
+            dict: Diccionario en el nivel más profundo encontrado
         """
         current = resp
         while (
@@ -46,6 +53,12 @@ class controller_game:
     def _find_list_of_dicts(self, obj):
         """
         Busca la primera lista cuyos elementos sean dicts.
+        
+        Args:
+            obj: Objeto a buscar (dict, list o cualquier tipo)
+            
+        Returns:
+            list or None: Lista de diccionarios encontrada o None
         """
         if isinstance(obj, dict):
             for v in obj.values():
@@ -62,28 +75,56 @@ class controller_game:
         return None
     
     def job_nearly(self):
+        """Obtiene el trabajo más cercano al jugador.
+        
+        Returns:
+            Job or None: Trabajo más cercano o None si no hay
+        """
         return self.game_service.job_most_nearly(self.courier.position)
     
     def job_nearly_ia(self):
-     """Obtiene el job más cercano para la IA, excluyendo los del jugador."""
-     return self.game_service.job_most_nearly_ia(self.ia.position)
+        """Obtiene el job más cercano para la IA, excluyendo los del jugador.
+        
+        Returns:
+            Job or None: Trabajo más cercano para la IA o None si no hay
+        """
+        return self.game_service.job_most_nearly_ia(self.ia.position)
     
     def set_last_job(self, job):
+        """Establece el último trabajo tomado por el jugador.
+        
+        Args:
+            job: Trabajo a establecer como último
+        """
         self.game_service.set_last_job(job)
         
     def get_last_job(self):
+        """Obtiene el último trabajo tomado por el jugador.
+        
+        Returns:
+            Job: Último trabajo del jugador
+        """
         return self.game_service.get_last_job()
     
     def set_last_job_ia(self, job):
-        # Debe registrar el último trabajo de la IA en su propio campo,
-        # no en el del jugador.
+        """Establece el último trabajo tomado por la IA.
+        
+        Args:
+            job: Trabajo a establecer como último de la IA
+        """
         self.game_service.set_last_job_ia(job)
     
     def get_last_job_ia(self):
-          return self.game_service.get_last_job_ia()
+        """Obtiene el último trabajo tomado por la IA.
+        
+        Returns:
+            Job: Último trabajo de la IA
+        """
+        return self.game_service.get_last_job_ia()
         
 
     def load_world(self):
+        """Carga todos los componentes del mundo del juego: mapa, trabajos, clima y personajes."""
         # 1) Mapa
         print("Cargando mapa...")
         map_resp = self.api.fetch("city/map")
@@ -127,7 +168,11 @@ class controller_game:
         print(f"Courier inicializado{self.courier.position}  e IA inicializada {self.ia.position}.")
 
     def _generate_initial_bursts(self):
-        """Genera bursts iniciales para compatibilidad con código existente"""
+        """Genera bursts iniciales para compatibilidad con código existente
+        
+        Returns:
+            list: Lista de WeatherBurst iniciales
+        """
         bursts = []
         # Crear algunos bursts iniciales basados en el clima actual
         for i in range(5):
@@ -167,15 +212,33 @@ class controller_game:
         self.weather_simulator.update()
 
     def get_current_weather_info(self):
-        """Obtiene informacin del clima actual para la vista."""
+        """Obtiene informacin del clima actual para la vista.
+        
+        Returns:
+            dict: Información del clima actual
+        """
         if self.weather_simulator:
             return self.weather_simulator.get_weather_info()
         return {}
 
     def move_courier(self, dx, dy, record_step=True):
+        """Mueve al jugador en la dirección especificada.
+        
+        Args:
+            dx: Desplazamiento en eje x
+            dy: Desplazamiento en eje y
+            record_step: Si registrar el paso en el historial
+        """
         self.courier.move_courier(self.city_map.width, self.city_map.height, self.city_map, dx, dy, record_step)
         
     def move_ia(self, dx, dy, record_step=True):
+        """Mueve a la IA en la dirección especificada.
+        
+        Args:
+            dx: Desplazamiento en eje x
+            dy: Desplazamiento en eje y
+            record_step: Si registrar el paso en el historial
+        """
         self.ia.move_ia(self.city_map.width, self.city_map.height, self.city_map, dx, dy, record_step)
 
     def new_jobs(self):
@@ -196,7 +259,17 @@ class controller_game:
         self.new_jobs()
 
     def get_steps(self):
+        """Obtiene los siguientes pasos de movimiento.
+        
+        Returns:
+            tuple: Siguiente paso de movimiento
+        """
         return self.game_service.get_steps()
 
     def include_step(self, pos):
+        """Incluye un nuevo paso en la pila de movimientos.
+        
+        Args:
+            pos: Posición a agregar como paso
+        """
         self.game_service.include_new_step(pos)

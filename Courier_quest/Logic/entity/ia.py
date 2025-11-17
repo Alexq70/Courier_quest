@@ -14,6 +14,13 @@ class Ia:
     """
 
     def __init__(self, start_pos: Tuple[int, int], max_weight: float,city_map=None):
+        """Inicializa la IA con posición inicial y capacidad máxima.
+        
+        Args:
+            start_pos: Posición inicial (x, y) de la IA
+            max_weight: Peso máximo que puede cargar la IA
+            city_map: Instancia del mapa de la ciudad para navegación (opcional)
+        """
         self.position: Tuple[int, int] = start_pos
         self.max_weight: float = max_weight
         self.current_load: float = 0.0
@@ -107,7 +114,17 @@ class Ia:
         }
 
     def move_ia(self, width, height, citymap, dx: int, dy: int, record_step: bool = True):
-        """va a recibir en view game la coordenada cambiada"""
+        """Mueve la IA en la dirección especificada si es posible.
+        
+        Args:
+            width: Ancho del mapa
+            height: Alto del mapa
+            citymap: Instancia del mapa de la ciudad para verificar bloqueos
+            dx: Desplazamiento en el eje x
+            dy: Desplazamiento en el eje y
+            record_step: Si es True, calcula la nueva posición desde la actual;
+                        si es False, usa dx y dy como posición absoluta
+        """
         if not self.can_move():
             return
 
@@ -123,6 +140,11 @@ class Ia:
             self.move_to((nx, ny))
 
     def move_to(self, position: Tuple[int, int]) -> None:
+        """Mueve la IA a una posición específica y actualiza la resistencia.
+        
+        Args:
+            position: Nueva posición (x, y) de la IA
+        """
         prev = self.position
         # Memoriza la posición previa para evitar retrocesos inmediatos
         if prev is not None:
@@ -166,11 +188,21 @@ class Ia:
             return "Normal"
 
     def can_move(self) -> bool:
+        """Verifica si la IA puede moverse.
+        
+        Returns:
+            bool: True si puede moverse, False si está exhausta
+        """
         if self.exhausted_lock:
             return self.stamina >= 30.0
         return self.stamina > 0.0
 
     def get_speed_multiplier(self) -> float:
+        """Obtiene el multiplicador de velocidad según el estado de resistencia.
+        
+        Returns:
+            float: Multiplicador de velocidad (1.0 normal, 0.8 cansado, 0.0 exhausto)
+        """
         state = self.get_stamina_state()
         if state == "Normal":
             return 1.0
@@ -186,6 +218,14 @@ class Ia:
             self.exhausted_lock = False
 
     def is_stationary(self, previous_pos: Tuple[int, int]) -> bool:
+        """Verifica si la IA permanece en la misma posición.
+        
+        Args:
+            previous_pos: Posición anterior a comparar
+            
+        Returns:
+            bool: True si está en la misma posición, False si se movió
+        """
         return self.position == previous_pos
     
     def trigger_defeat(self, reason: str) -> None:
@@ -194,6 +234,11 @@ class Ia:
             self.defeat_reason = reason
 
     def adjust_reputation(self, delta: int):
+        """Ajusta la reputación de la IA dentro de los límites 0-100.
+        
+        Args:
+            delta: Cantidad a sumar (positiva) o restar (negativa) a la reputación
+        """
         self.reputation = max(0, min(100, self.reputation + delta))
 
         if self.reputation < 20:
@@ -210,6 +255,9 @@ class Ia:
     def posibility_lose_job(self):
         """
         Probabilidad del 0,06% de perder un pedido en cada refresco del juego
+        
+        Returns:
+            bool: True si se pierde un pedido, False en caso contrario
         """
         r1,r2 = (random.randint(0,150),random.randint(0,150))
         if r1 == r2:
@@ -220,6 +268,12 @@ class Ia:
     def next_movement_ia(self,jobs):
         """
         Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
+        
+        Args:
+            jobs: Lista de trabajos disponibles para la IA
+            
+        Returns:
+            tuple: Tupla con (código de movimiento, coordenada objetivo)
         """
         # Incluir también los jobs que ya están en inventario para priorizar dropoffs
         try:
@@ -248,11 +302,23 @@ class Ia:
     def set_mode(self,mode):
         """
         cambia el modo de busqueda del pedido
+        
+        Args:
+            mode: Modo de búsqueda (1=Fácil, 2=Medio, 3=Difícil)
         """
         self.mode_deliver = mode
         return
 
     def easy_mode(self, jobs, city_map=None):
+            """Modo fácil: movimiento semi-aleatorio con tendencia hacia objetivos.
+            
+            Args:
+                jobs: Lista de trabajos disponibles
+                city_map: Mapa de la ciudad (opcional)
+                
+            Returns:
+                tuple: Siguiente posición (x, y) para la IA
+            """
             current_x, current_y = self.position
 
             job = None
@@ -289,7 +355,15 @@ class Ia:
             return (current_x, current_y)
         
     def _is_valid_position(self, x, y):
-            """Verifica si (x,y) es transitable según CityMap (dentro de límites y no bloqueado)."""
+            """Verifica si (x,y) es transitable según CityMap (dentro de límites y no bloqueado).
+        
+            Args:
+                x: Coordenada x
+                y: Coordenada y
+                
+            Returns:
+                bool: True si la posición es válida y transitable, False en caso contrario
+            """
             if self.city_map is None:
                 return False
             try:
@@ -311,6 +385,12 @@ class Ia:
         Greedy avanzado:
         Se dirige al pickup o dropoff más cercano evitando edificios.
         Rodea obstáculos si la ruta directa está bloqueada.
+        
+        Args:
+            jobs: Lista de trabajos disponibles
+            
+        Returns:
+            tuple: Siguiente posición (x, y) para la IA
         """
         if not jobs:
             return self.easy_mode(jobs)
@@ -371,6 +451,12 @@ class Ia:
         """
         Hard Mode: A* pathfinding real.
         Rodea los edificios, evita loops y encuentra la ruta óptima.
+        
+        Args:
+            jobs: Lista de trabajos disponibles
+            
+        Returns:
+            tuple: Siguiente posición (x, y) para la IA
         """
         if not jobs:
             return self.easy_mode(jobs)
@@ -434,6 +520,14 @@ class Ia:
         return (self.position[0], self.position[1])
 
     def _get_target_for_job(self, job: Job) -> Optional[Tuple[int, int]]:
+        """Obtiene la posición objetivo para un trabajo (pickup o dropoff).
+        
+        Args:
+            job: Trabajo del cual obtener la posición objetivo
+            
+        Returns:
+            Optional[Tuple[int, int]]: Posición objetivo o None si no está disponible
+        """
         if job in self.inventory.get_all():
             return getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
         return getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
@@ -445,6 +539,11 @@ class Ia:
         2) deadline más cercano
         3) menor distancia desde la posición actual
         Prefiere objetivos válidos (con coordenadas)
+        Args:
+            jobs: Lista de trabajos disponibles
+            
+        Returns:
+            Optional[Tuple[Job, Tuple[int, int]]]: Tupla con trabajo y posición objetivo, o None
         """
         if not jobs:
             return None
@@ -496,11 +595,28 @@ class Ia:
         return None
     
     def _neighbors(self, node):
+        """Obtiene los vecinos transitables de un nodo.
+        
+        Args:
+            node: Tupla (x, y) representando el nodo actual
+            
+        Returns:
+            List[Tuple[int, int]]: Lista de posiciones vecinas transitables
+        """
         x, y = node
         candidates = [(x+1,y),(x-1,y),(x,y+1),(x,y-1)]
         return [(nx,ny) for nx,ny in candidates if self._is_valid_position(nx,ny)]
     
     def astar(self, start, goal, max_nodes=8000):
+        """Algoritmo A* para encontrar el camino más corto entre dos puntos.
+        
+        Args:
+            start: Posición inicial (x, y)
+            goal: Posición objetivo (x, y)
+            max_nodes: Número máximo de nodos a procesar
+            
+        Returns:
+            Optional[List[Tuple[int, int]]]: Camino desde start hasta goal, o None si no se encuentra"""
         import heapq
 
         def h(a, b):

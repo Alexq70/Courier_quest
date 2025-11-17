@@ -15,6 +15,15 @@ class CityMap:
         legend: Dict[str, Dict[str, Any]],
         goal: Any,
     ):
+        """Inicializa el mapa de la ciudad con sus dimensiones y propiedades.
+        
+        Args:
+            width: Ancho del mapa en tiles
+            height: Alto del mapa en tiles
+            tiles: Matriz bidimensional de caracteres representando el mapa
+            legend: Diccionario que define las propiedades de cada tipo de tile
+            goal: Objetivo o meta del mapa (puntaje o posición)
+        """
         self.width = width
         self.height = height
         self.tiles = tiles
@@ -40,6 +49,17 @@ class CityMap:
         return self.legend[key].get("surface_weight", 1.0)
     
     def detectar_bloques(self):
+      """Detecta y agrupa bloques contiguos de tiles 'B' (bloqueados) y 'D' (edificios).
+    
+      Returns:
+        List[Dict]: Lista de diccionarios con información de cada bloque detectado.
+                    Cada bloque contiene:
+                    - x: coordenada x inicial del bloque
+                    - y: coordenada y inicial del bloque  
+                    - width: ancho del bloque en tiles
+                    - height: alto del bloque en tiles
+      """
+        
       visited = [[False] * self.width for _ in range(self.height)] 
       bloques = []  
 

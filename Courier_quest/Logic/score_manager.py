@@ -14,9 +14,19 @@ class ScoreBreakdown:
 
     @property
     def total_points(self) -> float:
+        """Calcula el puntaje total restando penalizaciones y sumando bonos.
+        
+        Returns:
+            float: Puntaje total (mínimo 0.0)
+        """
         return max(0.0, self.base_income + self.time_bonus - self.penalty_total)
 
     def as_dict(self) -> Dict[str, float]:
+        """Convierte el desglose a diccionario incluyendo el total.
+        
+        Returns:
+            Dict[str, float]: Diccionario con todas las métricas de puntaje
+        """
         data = asdict(self)
         data["total_points"] = self.total_points
         return data
@@ -32,6 +42,13 @@ class ScoreManager:
         late_penalties: Optional[Dict[str, float]] = None,
         time_bonus_rate: float = 0.2,
     ) -> None:
+        """Inicializa el administrador de puntajes con configuraciones de penalizaciones y bonos.
+        
+        Args:
+            cancellation_penalty: Penalización por cancelación de pedido
+            late_penalties: Diccionario con penalizaciones por retraso (minor, moderate, severe)
+            time_bonus_rate: Tasa de bono por tiempo restante
+        """
         self.cancellation_penalty = cancellation_penalty
         self.late_penalties = late_penalties or {
             "minor": 10.0,
@@ -106,6 +123,15 @@ class ScoreManager:
     # Helpers
     # ------------------------------------------------------------------
     def _penalty_for_lateness(self, lateness_seconds: float) -> float:
+        """Calcula la penalización por retraso según la duración.
+        
+        Args:
+            lateness_seconds: Segundos de retraso en la entrega
+            
+        Returns:
+            float: Cantidad de penalización aplicada
+        """
+
         if lateness_seconds <= 0:
             return 0.0
         if lateness_seconds <= 30:

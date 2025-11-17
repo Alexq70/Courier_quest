@@ -15,6 +15,14 @@ class Courier:
     """
 
     def __init__(self, start_pos: Tuple[int, int], max_weight: float):
+        
+        """Inicializa al repartidor con posición inicial y capacidad máxima.
+        
+        Args:
+            start_pos: Posición inicial (x, y) del repartidor
+            max_weight: Peso máximo que puede cargar el repartidor
+        """
+        
         self.position: Tuple[int, int] = start_pos
         self.max_weight: float = max_weight
         self.current_load: float = 0.0
@@ -99,6 +107,17 @@ class Courier:
         }
 
     def move_courier(self, width, height, citymap, dx: int, dy: int, record_step: bool = True):
+        """Mueve al repartidor en la dirección especificada si es posible.
+        
+        Args:
+            width: Ancho del mapa
+            height: Alto del mapa
+            citymap: Instancia del mapa de la ciudad para verificar bloqueos
+            dx: Desplazamiento en el eje x
+            dy: Desplazamiento en el eje y
+            record_step: Si es True, calcula la nueva posición desde la actual;
+                        si es False, usa dx y dy como posición absoluta
+        """
         if not self.can_move():
             return
 
@@ -114,6 +133,11 @@ class Courier:
             self.move_to((nx, ny))
 
     def move_to(self, position: Tuple[int, int]) -> None:
+        """Mueve al repartidor a una posición específica y actualiza la resistencia.
+        
+        Args:
+            position: Nueva posición (x, y) del repartidor
+        """
         self.position = position
         self.stamina = max(0.0, self.stamina - self._calculate_stamina_cost())
 
@@ -149,11 +173,21 @@ class Courier:
             return "Normal"
 
     def can_move(self) -> bool:
+        """Verifica si el repartidor puede moverse.
+        
+        Returns:
+            bool: True si puede moverse, False si está exhausto
+        """
         if self.exhausted_lock:
             return self.stamina >= 30.0
         return self.stamina > 0.0
 
     def get_speed_multiplier(self) -> float:
+        """Obtiene el multiplicador de velocidad según el estado de resistencia.
+        
+        Returns:
+            float: Multiplicador de velocidad (1.0 normal, 0.8 cansado, 0.0 exhausto)
+        """
         state = self.get_stamina_state()
         if state == "Normal":
             return 1.0
@@ -169,6 +203,14 @@ class Courier:
             self.exhausted_lock = False
 
     def is_stationary(self, previous_pos: Tuple[int, int]) -> bool:
+        """Verifica si el repartidor permanece en la misma posición.
+        
+        Args:
+            previous_pos: Posición anterior a comparar
+            
+        Returns:
+            bool: True si está en la misma posición, False si se movió
+        """
         return self.position == previous_pos
     
     def trigger_defeat(self, reason: str) -> None:
@@ -177,6 +219,11 @@ class Courier:
             self.defeat_reason = reason
 
     def adjust_reputation(self, delta: int):
+        """Ajusta la reputación del repartidor dentro de los límites 0-100.
+        
+        Args:
+            delta: Cantidad a sumar (positiva) o restar (negativa) a la reputación
+        """
         self.reputation = max(0, min(100, self.reputation + delta))
 
         if self.reputation < 20:
@@ -193,6 +240,9 @@ class Courier:
     def posibility_lose_job(self):
         """
         Probabilidad del 0,06% de perder un pedido en cada refresco del juego
+        
+        Returns:
+            bool: True si se pierde un pedido, False en caso contrario
         """
         r1,r2 = (random.randint(0,150),random.randint(0,150))
         if r1 == r2:

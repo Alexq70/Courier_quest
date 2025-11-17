@@ -25,6 +25,16 @@ class GameService:
     )
 
     def __init__(self, jobs: Iterable[Job], weather: Iterable[WeatherBurst], map: CityMap, courier: Courier, ia : Ia):
+        
+        """Inicializa el servicio del juego con los componentes principales.
+        
+        Args:
+            jobs: Iterable de trabajos disponibles en el juego
+            weather: Iterable de eventos climáticos
+            map: Mapa de la ciudad
+            courier: Entidad del mensajero/jugador
+            ia: Entidad de inteligencia artificial
+        """
         self.session_start = time.time()
         self.jobs = jobs
         self.weather = weather
@@ -39,6 +49,12 @@ class GameService:
         self.pila = deque()
 
     def _bind_jobs_to_session(self, jobs_iterable: Iterable[Job]) -> None:
+        
+        """Vincula los trabajos al tiempo de inicio de la sesión actual.
+        
+        Args:
+            jobs_iterable: Iterable de trabajos a vincular
+        """
         for job in jobs_iterable:
             if hasattr(job, "bind_session_start"):
                 job.bind_session_start(self.session_start)
@@ -67,8 +83,14 @@ class GameService:
         return nearest
 
     def distance(self, a, b):
-        """
-        Calcula el pedido mas cercano
+        """Calcula la distancia euclidiana entre dos puntos.
+        
+        Args:
+            a: Tupla (x, y) representando el primer punto
+            b: Tupla (x, y) representando el segundo punto
+            
+        Returns:
+            float: Distancia euclidiana entre los puntos a y b
         """
         return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
@@ -81,21 +103,46 @@ class GameService:
         self.last_job = job
 
     def set_jobs(self, jobs: Iterable[Job]) -> None:
+        """Establece la lista de trabajos disponibles y los vincula a la sesión.
+        
+        Args:
+            jobs: Iterable de trabajos a establecer
+        """
         self.jobs = jobs
         self._bind_jobs_to_session(self.jobs)
     
     def get_steps(self):
+        """Obtiene el siguiente paso de la pila de movimientos.
+        
+        Returns:
+            tuple: Coordenadas (x, y) del siguiente paso, o (0, 0) si la pila está vacía
+        """
         if self.pila: 
             return self.pila.pop()
         return (0, 0)
     
     def include_new_step(self,pos):
+        """Agrega un nuevo paso a la pila de movimientos.
+        
+        Args:
+            pos: Tupla (x, y) representando la posición a agregar
+        """
         self.pila.append(pos)
     
     def has_steps(self):
+        """Verifica si hay pasos pendientes en la pila.
+        
+        Returns:
+            bool: True si hay pasos pendientes, False en caso contrario
+        """
         return len(self.pila) > 0
     
     def next_job_ia(self):
+        """Obtiene el próximo trabajo para la IA.
+        
+        Returns:
+            Job | None: Próximo trabajo para la IA o None si no hay
+        """
         return 
     
     #---------------------- IA LOGIC -------------------------------
@@ -133,6 +180,11 @@ class GameService:
 
     
     def _next_movement_ia(self):
+        """Calcula el próximo movimiento de la IA.
+        
+        Returns:
+            tuple: Próxima posición (x, y) para la IA
+        """
         return self.ia.next_movement_ia()
     
     def get_last_job_ia(self):

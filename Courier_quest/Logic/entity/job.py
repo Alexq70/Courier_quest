@@ -21,6 +21,18 @@ class Job:
         priority: int,
         release_time: Optional[Union[int, float]] = None,
     ):
+        """Inicializa un trabajo de entrega con sus propiedades básicas.
+        
+        Args:
+            id: Identificador único del trabajo
+            pickup: Coordenadas (x, y) de recogida
+            dropoff: Coordenadas (x, y) de entrega
+            payout: Pago por completar el trabajo
+            deadline: Límite de tiempo para completar el trabajo
+            weight: Peso del paquete
+            priority: Nivel de prioridad del trabajo
+            release_time: Tiempo de liberación del trabajo (opcional)
+        """
         self.id = id
         self.pickup = tuple(pickup)
         self.dropoff = tuple(dropoff)
@@ -42,6 +54,14 @@ class Job:
         self.owner: Optional[str] = None
 
     def _format_deadline_display(self, value: DeadlineInput | None) -> str:
+        """Formatea el deadline para visualización.
+        
+        Args:
+            value: Valor del deadline a formatear
+            
+        Returns:
+            str: Representación en string del deadline
+        """
         if value is None:
             return ""
         if isinstance(value, str):
@@ -49,6 +69,14 @@ class Job:
         return str(value)
 
     def _parse_deadline(self, value: DeadlineInput | None) -> Optional[datetime]:
+        """Parsea el deadline desde diferentes formatos a datetime.
+        
+        Args:
+            value: Valor del deadline a parsear
+            
+        Returns:
+            Optional[datetime]: Objeto datetime o None si no se puede parsear
+        """
         if not isinstance(value, str):
             return None
         text = value.strip()
@@ -87,12 +115,28 @@ class Job:
             return dt.astimezone(timezone.utc)
 
     def _calculate_deadline_offset(self, deadline_dt: Optional[datetime]) -> Optional[float]:
+        """Calcula el offset del deadline desde medianoche.
+        
+        Args:
+            deadline_dt: Fecha y hora del deadline
+            
+        Returns:
+            Optional[float]: Segundos desde medianoche o None
+        """
         if deadline_dt is None:
             return None
         base = deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0)
         return (deadline_dt - base).total_seconds()
 
     def _to_float(self, value: DeadlineInput | None) -> Optional[float]:
+        """Convierte un valor a float si es posible.
+        
+        Args:
+            value: Valor a convertir
+            
+        Returns:
+            Optional[float]: Valor convertido a float o None
+        """
         if value is None:
             return None
         if isinstance(value, (int, float)):
@@ -103,6 +147,11 @@ class Job:
             return None
 
     def _compute_deadline_timestamp(self) -> Optional[float]:
+        """Calcula el timestamp absoluto del deadline.
+        
+        Returns:
+            Optional[float]: Timestamp Unix del deadline o None
+        """
         session_start = self._session_start
         if session_start is not None:
             if self._deadline_offset is not None:
@@ -119,6 +168,11 @@ class Job:
         return None
 
     def _compute_release_timestamp(self) -> Optional[float]:
+        """Calcula el timestamp absoluto de liberación.
+        
+        Returns:
+            Optional[float]: Timestamp Unix de liberación o None
+        """
         session_start = self._session_start
         offset = self._to_float(self.release_time)
         if session_start is None or offset is None:
@@ -133,22 +187,50 @@ class Job:
         self._total_duration_cache = None
 
     def get_session_start(self) -> Optional[float]:
+        """Obtiene el timestamp de inicio de sesión.
+        
+        Returns:
+            Optional[float]: Timestamp de inicio de sesión o None
+        """
         return self._session_start
 
     def get_deadline_timestamp(self) -> Optional[float]:
+        """Obtiene el timestamp absoluto del deadline.
+        
+        Returns:
+            Optional[float]: Timestamp Unix del deadline o None
+        """
         if self._deadline_timestamp is None:
             self._deadline_timestamp = self._compute_deadline_timestamp()
         return self._deadline_timestamp
 
     def get_release_timestamp(self) -> Optional[float]:
+        """Obtiene el timestamp absoluto de liberación.
+        
+        Returns:
+            Optional[float]: Timestamp Unix de liberación o None
+        """
         if self._release_timestamp is None:
             self._release_timestamp = self._compute_release_timestamp()
         return self._release_timestamp
 
     def get_deadline_offset_seconds(self) -> Optional[float]:
+        """Obtiene el offset en segundos desde medianoche.
+        
+        Returns:
+            Optional[float]: Segundos desde medianoche o None
+        """
         return self._deadline_offset
 
     def get_time_until_deadline(self, reference_time: Optional[float] = None) -> Optional[float]:
+        """Calcula el tiempo restante hasta el deadline.
+        
+        Args:
+            reference_time: Tiempo de referencia (default: tiempo actual)
+            
+        Returns:
+            Optional[float]: Segundos restantes hasta el deadline o None
+        """
         deadline_ts = self.get_deadline_timestamp()
         if deadline_ts is None:
             return None
@@ -156,6 +238,11 @@ class Job:
         return deadline_ts - ref
 
     def get_total_duration(self) -> float:
+        """Calcula la duración total disponible para el trabajo.
+        
+        Returns:
+            float: Duración total en segundos
+        """
         if self._total_duration_cache is not None:
             return self._total_duration_cache
         deadline_ts = self.get_deadline_timestamp()
@@ -174,13 +261,34 @@ class Job:
         return self._total_duration_cache
 
     def get_deadline_remaining(self, reference_time: Optional[float] = None) -> Optional[float]:
+        """Obtiene el tiempo restante hasta el deadline.
+        
+        Args:
+            reference_time: Tiempo de referencia (default: tiempo actual)
+            
+        Returns:
+            Optional[float]: Segundos restantes o None
+        """
         return self.get_time_until_deadline(reference_time)
 
     def is_overdue(self, reference_time: Optional[float] = None) -> bool:
+        """Verifica si el trabajo está vencido.
+        
+        Args:
+            reference_time: Tiempo de referencia (default: tiempo actual)
+            
+        Returns:
+            bool: True si el trabajo está vencido, False en caso contrario
+        """
         remaining = self.get_time_until_deadline(reference_time)
         return remaining is not None and remaining < 0
 
     def get_deadline_iso(self) -> str:
+        """Obtiene el deadline en formato ISO 8601.
+        
+        Returns:
+            str: Deadline formateado en ISO 8601
+        """
         if self._deadline_dt is not None:
             return self._deadline_dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
         return self.deadline

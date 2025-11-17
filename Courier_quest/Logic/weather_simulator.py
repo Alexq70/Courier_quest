@@ -8,6 +8,11 @@ class WeatherSimulator:
     """Simulador de clima con temporizadores y transiciones suaves"""
     
     def __init__(self, weather_config: Dict[str, Any]):
+        """Inicializa el simulador de clima con configuración específica.
+        
+        Args:
+            weather_config: Configuración del clima con condiciones iniciales y transiciones
+        """
         self.config = weather_config
         self.current_condition = weather_config["initial"]["condition"]
         self.current_intensity = weather_config["initial"]["intensity"]
@@ -38,6 +43,10 @@ class WeatherSimulator:
         """
         Actualiza el estado del clima y retorna:
         (condición_actual, intensidad_actual, multiplicador_actual, cambió_clima)
+        
+        Returns:
+            Tuple[str, float, float, bool]: Condición actual, intensidad, multiplicador de velocidad, 
+                                            y flag indicando si cambió el clima
         """
         current_time = time.time()
         elapsed = current_time - self.burst_start_time
@@ -76,7 +85,14 @@ class WeatherSimulator:
         print(f"Iniciando transición: {self.current_condition} -> {self.target_condition}")
     
     def _update_transition(self, current_time: float) -> float:
-        """Actualiza la transición en curso y retorna progreso (0-1)"""
+        """Actualiza la transición en curso y retorna progreso (0-1)
+        
+        Args:
+            current_time: Tiempo actual en segundos
+            
+        Returns:
+            float: Progreso de la transición (0.0 a 1.0)
+        """
         elapsed_transition = current_time - self.transition_start_time
         progress = min(1.0, elapsed_transition / self.transition_duration)
         
@@ -108,7 +124,11 @@ class WeatherSimulator:
         print(f"Transición completada: {self.current_condition} (mult: {self.current_speed_multiplier:.2f}) - Dura {self.burst_duration:.1f}s")
     
     def _simulate_weather_change(self) -> str:
-        """Simula cambio climático usando cadena de Markov"""
+        """Simula cambio climático usando cadena de Markov
+        
+        Returns:
+            str: Próxima condición climática
+        """
         transition_probs = self.config["transition"].get(self.current_condition, {})
         
         if not transition_probs:
@@ -117,6 +137,14 @@ class WeatherSimulator:
         return self._markov_transition(transition_probs)
     
     def _markov_transition(self, transition_probs: Dict[str, float]) -> str:
+        """Realiza una transición de Markov basada en probabilidades
+        
+        Args:
+            transition_probs: Diccionario de probabilidades de transición
+            
+        Returns:
+            str: Condición climática seleccionada
+        """
         rand = random.random()
         cumulative_prob = 0.0
         
@@ -128,6 +156,14 @@ class WeatherSimulator:
         return max(transition_probs.items(), key=lambda x: x[1])[0]
     
     def _calculate_intensity_for_condition(self, condition: str) -> float:
+        """Calcula la intensidad para una condición climática específica
+        
+        Args:
+            condition: Condición climática
+            
+        Returns:
+            float: Intensidad calculada dentro del rango apropiado
+        """
         intensity_ranges = {
             "clear": (0.0, 0.1), "clouds": (0.1, 0.3), "fog": (0.3, 0.5),
             "wind": (0.4, 0.7), "rain_light": (0.3, 0.6), "rain": (0.6, 0.9),
@@ -137,11 +173,24 @@ class WeatherSimulator:
         return random.uniform(min_int, max_int)
     
     def _interpolate(self, start: float, end: float, progress: float) -> float:
-        """Interpolación lineal suave"""
+        """Interpolación lineal suave
+        
+        Args:
+            start: Valor inicial
+            end: Valor final
+            progress: Progreso de la interpolación (0.0 a 1.0)
+            
+        Returns:
+            float: Valor interpolado
+        """
         return start + (end - start) * progress
     
     def get_weather_info(self) -> Dict[str, Any]:
-        """Obtiene información completa del clima actual"""
+        """Obtiene información completa del clima actual
+        
+        Returns:
+            Dict[str, Any]: Diccionario con información detallada del clima
+        """
         current_time = time.time()
         time_remaining = max(0, self.burst_duration - (current_time - self.burst_start_time))
         
@@ -155,6 +204,11 @@ class WeatherSimulator:
         }
     
     def _get_transition_progress(self) -> float:
+        """Obtiene el progreso actual de la transición climática
+        
+        Returns:
+            float: Progreso de la transición (0.0 a 1.0)
+        """
         if not self.is_transitioning:
             return 0
         lapso = time.time() - self.transition_start_time
