@@ -106,13 +106,13 @@ Modificaciones en el código:
     No se alteró la lógica interna; únicamente se corrigió la forma en que view_game llamaba a next_movement_ia(), asegurando que recibiera correctamente la tupla (movimiento, coordenada) y evitando enviar parámetros inválidos.
 
 
-08/11/2025 | “Me puedes dar un método como easy_mode pero que solo se mueva aleatoriamente y revise los pedidos?” |
+08/11/2025 | “Me puedes dar un método como easy_mode pero que solo se mueva aleatoriamente y revise los pedidos, es para probar si la logica de la IA esta funcionando?” |
 Resumen de la respuesta:
 La IA generó un easy_mode(jobs) más completo, explicando cómo combinar movimientos aleatorios con una ligera tendencia hacia un pedido cercano, sin modificar lógica existente. Se detalló cómo obtener las posiciones de pickup sin romper la estructura actual.
 Modificaciones en el código:
     Se mejoró easy_mode para aceptar la lista de jobs, leer la posición del pickup y seleccionar una dirección adecuada. No se cambió la lógica de movimiento de la IA; solo se ajustó el valor retornado para mantener compatibilidad con next_movement_ia().
 
-09/11/2025 | “El bicho se mueve pero no agarra ningún pedido, ¿qué está pasando?” |
+09/11/2025 | “La IA se mueve pero no agarra ningún pedido, ¿qué está pasando?” |
 Resumen de la respuesta:
 La IA explicó que easy_mode únicamente genera movimiento y que el problema era que la IA nunca ejecutaba la lógica de recogida de pedidos. Se identificó que _pickup_job_ia() no se estaba llamando después de mover a la IA, por lo que nunca se detectaba cuando llegaba a un pickup. También se encontró que job_nearly_ia() estaba siendo invocado con parámetros incorrectos.
 Modificaciones en el código:
