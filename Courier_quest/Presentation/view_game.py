@@ -642,49 +642,119 @@ class View_game:
             courier.weather = simulator.current_condition
 
     def _save_game_snapshot(self):
-        """Guarda una snapshot JSON con el estado mínimo para reanudar la partida."""
+        """Guarda snapshot mínimo incluyendo estado de la IA y del mapa."""
         save_path = self._get_save_path()
         save_path.parent.mkdir(parents=True, exist_ok=True)
-        courier = self.engine.courier
-        score_manager = getattr(self.engine, "score_manager", None)
+
+        def _job_to_dict(job):
+            if job is None:
+                return None
+            return {
+                "id": getattr(job, "id", None),
+                "pickup": list(getattr(job, "pickup", (0, 0))),
+                "dropoff": list(getattr(job, "dropoff", (0, 0))),
+                "payout": float(getattr(job, "payout", 0.0) or 0.0),
+                "weight": float(getattr(job, "weight", 0.0) or 0.0),
+                "priority": int(getattr(job, "priority", 0) or 0),
+                "deadline": getattr(job, "deadline", None),
+                "release_time": getattr(job, "release_time", None),
+            }
+
+        courier = getattr(self.engine, "courier", None)
+        ia = getattr(self.engine, "ia", None)
+
         snapshot = {
-            "prev_tile": self.prev,
             "saved_at": time.time(),
-            "player_name": self.player_name,
-            "state": self.state,
-            "elapsed_time": self.elapsed_time,
-            "remaining_time": self.remaining_time,
-            "earned": self.earned,
-            "goal": self.goal,
-            "courier": {
-                "position": list(courier.position),
-                "stamina": courier.stamina,
-                "stamina_max": courier.stamina_max,
-                "exhausted_lock": courier.exhausted_lock,
-                "reputation": courier.reputation,
-                "reputation_streak": courier.reputation_streak,
-                "first_late_penalty_reduced": courier.first_late_penalty_reduced,
-                "total_earned": courier.total_earned,
-                "weather": courier.weather,
-                "defeat_reason": courier.defeat_reason,
-                "inventory": [self._serialize_job(job) for job in courier.inventory.get_all()],
-                "delivered_jobs": [self._serialize_job(job) for job in getattr(courier, "delivered_jobs", [])],
-            },
-            "jobs": [self._serialize_job(job) for job in getattr(self.engine, "jobs", [])],
-            "last_job_id": getattr(self.engine.get_last_job(), "id", None),
-            "score_breakdown": score_manager.get_breakdown().as_dict() if score_manager else None,
-            "weather": self._serialize_weather_state(),
-            "game_service": {
-                "session_start": getattr(self.engine.game_service, "session_start", time.time())
-            },
+            "player_name": getattr(self, "player_name", None),
+            "state": getattr(self, "state", "running"),
+            "elapsed_time": float(getattr(self, "elapsed_time", 0.0) or 0.0),
+            "remaining_time": float(getattr(self, "remaining_time", 0.0) or 0.0),
+            "earned": float(getattr(self, "earned", 0.0) or 0.0),
+            "goal": float(getattr(self, "goal", 0.0) or 0.0),
+            "jobs": [],
+            "courier": None,
+            "ia": None,
+            "map": None,
         }
+
+        # engine.jobs
         try:
-            save_path.parent.mkdir(parents=True, exist_ok=True)
-            save_path.write_text(json.dumps(snapshot, ensure_ascii=True, indent=2), encoding="utf-8")
-            self.pause_feedback = "Game saved. You can exit safely."
+            for j in getattr(self.engine, "jobs", []) or []:
+                jd = _job_to_dict(j)
+                if jd:
+                    snapshot["jobs"].append(jd)
+        except Exception:
+            snapshot["jobs"] = []
+
+        # courier
+        if courier is not None:
+            try:
+                snapshot["courier"] = {
+                    "position": list(getattr(courier, "position", (0, 0))),
+                    "stamina": float(getattr(courier, "stamina", 0.0) or 0.0),
+                    "stamina_max": float(getattr(courier, "stamina_max", 100.0) or 100.0),
+                    "reputation": float(getattr(courier, "reputation", 0.0) or 0.0),
+                    "delivered_jobs": [getattr(j, "id", None) for j in getattr(courier, "delivered_jobs", []) or []],
+                    "inventory": [],
+                    "earned": float(getattr(courier, "earned", getattr(courier, "total_earned", 0.0) or 0.0)),
+                }
+                if getattr(courier, "inventory", None):
+                    try:
+                        for j in courier.inventory.get_all() or []:
+                            jd = _job_to_dict(j)
+                            if jd:
+                                snapshot["courier"]["inventory"].append(jd)
+                    except Exception:
+                        snapshot["courier"]["inventory"] = []
+            except Exception:
+                snapshot["courier"] = None
+
+        # IA
+        if ia is not None:
+            try:
+                ia_inv = []
+                if getattr(ia, "inventory", None):
+                    try:
+                        for j in ia.inventory.get_all() or []:
+                            jd = _job_to_dict(j)
+                            if jd:
+                                ia_inv.append(jd)
+                    except Exception:
+                        ia_inv = []
+                snapshot["ia"] = {
+                    "position": list(getattr(ia, "position", (0, 0))),
+                    "stamina": float(getattr(ia, "stamina", 0.0) or 0.0),
+                    "stamina_max": float(getattr(ia, "stamina_max", 100.0) or 100.0),
+                    "reputation": float(getattr(ia, "reputation", 0.0) or 0.0),
+                    "delivered_jobs": [getattr(j, "id", None) for j in getattr(ia, "delivered_jobs", []) or []],
+                    "inventory": ia_inv,
+                    "earned": float(getattr(ia, "earned", 0.0) or 0.0),
+                }
+            except Exception:
+                snapshot["ia"] = None
+
+        # Map (guardar lo mínimo necesario para reanudar mismo mapa)
+        try:
+            cmap = getattr(self.engine, "city_map", None)
+            if cmap is not None:
+                # tiles may be nested lists; JSON supports lists
+                tiles = getattr(cmap, "tiles", None)
+                snapshot["map"] = {
+                    "width": int(getattr(cmap, "width", 0)),
+                    "height": int(getattr(cmap, "height", 0)),
+                    "tiles": tiles,
+                    "goal": getattr(cmap, "goal", getattr(self, "goal", 0)),
+                }
+        except Exception:
+            snapshot["map"] = None
+
+        try:
+            save_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
+            self.pause_feedback = "Game saved"
+            self.pause_feedback_time = time.time()
         except Exception as exc:
-            self.pause_feedback = f"Save error: {exc}"
-        self.pause_feedback_time = time.time()
+            self.pause_feedback = f"Save error"
+            print(f"[ERROR] saving snapshot: {exc}")
 
     def _load_game_snapshot_if_available(self) -> None:
         save_path = self._get_save_path()
@@ -702,7 +772,11 @@ class View_game:
             print(f"[Save] Could not apply snapshot: {exc}")
 
     def _apply_snapshot(self, snapshot: dict) -> None:
-        self.prev = snapshot.get("prev_tile", None)
+        """Aplica snapshot: restaura mapa, jobs, courier e IA (minimamente)."""
+        if not isinstance(snapshot, dict):
+            return
+
+        # restore simple scalars
         self.player_name = snapshot.get("player_name", self.player_name)
         self.state = "running"
         self.elapsed_time = max(0.0, float(snapshot.get("elapsed_time", self.elapsed_time)))
@@ -710,81 +784,109 @@ class View_game:
         self.earned = float(snapshot.get("earned", self.earned))
         self.goal = float(snapshot.get("goal", self.goal))
 
-        courier = self.engine.courier
-        courier_data = snapshot.get("courier", {})
-        courier.position = tuple(courier_data.get("position", courier.position))
-        courier.stamina = float(courier_data.get("stamina", courier.stamina))
-        courier.stamina_max = float(courier_data.get("stamina_max", courier.stamina_max))
-        courier.exhausted_lock = bool(courier_data.get("exhausted_lock", courier.exhausted_lock))
-        courier.reputation = int(courier_data.get("reputation", courier.reputation))
-        courier.reputation_streak = int(courier_data.get("reputation_streak", courier.reputation_streak))
-        courier.first_late_penalty_reduced = bool(courier_data.get("first_late_penalty_reduced", courier.first_late_penalty_reduced))
-        courier.total_earned = float(courier_data.get("total_earned", courier.total_earned))
-        courier.weather = courier_data.get("weather", courier.weather)
-        courier.defeat_reason = courier_data.get("defeat_reason")
+        # Restore map if provided
+        map_snap = snapshot.get("map")
+        if map_snap:
+            try:
+                cmap = getattr(self.engine, "city_map", None)
+                if cmap:
+                    if "tiles" in map_snap and map_snap.get("tiles") is not None:
+                        cmap.tiles = map_snap.get("tiles")
+                    if "width" in map_snap and map_snap.get("width") is not None:
+                        cmap.width = int(map_snap.get("width"))
+                    if "height" in map_snap and map_snap.get("height") is not None:
+                        cmap.height = int(map_snap.get("height"))
+                    cmap.goal = map_snap.get("goal", getattr(cmap, "goal", self.goal))
+                else:
+                    # si engine no tiene city_map, intentar crear uno mínimo (depende de la implementación)
+                    try:
+                        from Logic.city_map import CityMap
+                        new_map = CityMap(width=int(map_snap.get("width", 0)), height=int(map_snap.get("height", 0)))
+                        new_map.tiles = map_snap.get("tiles", new_map.tiles)
+                        new_map.goal = map_snap.get("goal", self.goal)
+                        self.engine.city_map = new_map
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"[WARN] restoring map failed: {e}")
 
-        session_start = snapshot.get("game_service", {}).get("session_start")
-        if session_start is None:
-            session_start = getattr(self.engine.game_service, "session_start", time.time())
+        # Restore jobs
+        try:
+            jobs = [self._deserialize_job(jd) for jd in snapshot.get("jobs", []) or []]
+            self.engine.jobs = jobs
+            if getattr(self.engine, "game_service", None):
+                try:
+                    self.engine.game_service.set_jobs(jobs)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
-        inventory_jobs = [self._deserialize_job(job) for job in courier_data.get("inventory", [])]
-        courier.inventory.items.clear()
-        if hasattr(courier.inventory, "_heap"):
-            courier.inventory._heap.clear()
-        for job in inventory_jobs:
-            if session_start is not None and hasattr(job, "bind_session_start"):
-                job.bind_session_start(session_start)
-            courier.inventory.add_job(job)
-        courier.current_load = courier.inventory.total_weight()
+        # Restore courier
+        courier = getattr(self.engine, "courier", None)
+        cdata = snapshot.get("courier", {}) or {}
+        if courier and cdata:
+            try:
+                if cdata.get("position") is not None:
+                    courier.position = tuple(cdata.get("position"))
+                courier.stamina = float(cdata.get("stamina", getattr(courier, "stamina", 0.0)))
+                courier.stamina_max = float(cdata.get("stamina_max", getattr(courier, "stamina_max", 100.0)))
+                courier.reputation = float(cdata.get("reputation", getattr(courier, "reputation", 0.0)))
+                courier.total_earned = float(cdata.get("earned", getattr(courier, "total_earned", getattr(courier, "earned", 0.0))))
+                # restore inventory
+                try:
+                    if getattr(courier, "inventory", None):
+                        courier.inventory.items.clear()
+                except Exception:
+                    courier.inventory = Inventory(getattr(courier, "max_weight", 100.0))
+                for jd in cdata.get("inventory", []) or []:
+                    job_obj = self._deserialize_job(jd)
+                    if job_obj:
+                        courier.inventory.add_job(job_obj)
+                courier.delivered_jobs = [self._deserialize_job(jd) for jd in cdata.get("delivered_jobs", []) or []]
+            except Exception as e:
+                print(f"[WARN] restoring courier: {e}")
 
-        courier.delivered_jobs = [self._deserialize_job(job) for job in courier_data.get("delivered_jobs", [])]
-        if session_start is not None:
-            for job in courier.delivered_jobs:
-                if hasattr(job, "bind_session_start"):
-                    job.bind_session_start(session_start)
+        # Restore IA
+        ia = getattr(self.engine, "ia", None)
+        ia_data = snapshot.get("ia", {}) or {}
+        if ia and ia_data:
+            try:
+                if ia_data.get("position") is not None:
+                    ia.position = tuple(ia_data.get("position"))
+                ia.stamina = float(ia_data.get("stamina", getattr(ia, "stamina", 0.0)))
+                ia.stamina_max = float(ia_data.get("stamina_max", getattr(ia, "stamina_max", 100.0)))
+                ia.reputation = float(ia_data.get("reputation", getattr(ia, "reputation", 0.0)))
+                ia.earned = float(ia_data.get("earned", getattr(ia, "earned", 0.0)))
+                # restore IA inventory
+                try:
+                    if getattr(ia, "inventory", None):
+                        ia.inventory.items.clear()
+                except Exception:
+                    ia.inventory = Inventory(getattr(ia, "max_weight", 100.0))
+                for jd in ia_data.get("inventory", []) or []:
+                    job_obj = self._deserialize_job(jd)
+                    if job_obj:
+                        ia.inventory.add_job(job_obj)
+                ia.delivered_jobs = [self._deserialize_job(jd) for jd in ia_data.get("delivered_jobs", []) or []]
+            except Exception as e:
+                print(f"[WARN] restoring ia: {e}")
 
-        jobs = [self._deserialize_job(job) for job in snapshot.get("jobs", [])]
-        if session_start is not None:
-            for job in jobs:
-                if hasattr(job, "bind_session_start"):
-                    job.bind_session_start(session_start)
+        # restore weather/score etc if present (existing code handles it)
+        try:
+            if "score_breakdown" in snapshot and getattr(self.engine, "score_manager", None):
+                sdata = snapshot.get("score_breakdown")
+                if sdata:
+                    breakdown = ScoreBreakdown(
+                        base_income=float(sdata.get("base_income", 0.0)),
+                        penalty_total=float(sdata.get("penalty_total", 0.0)),
+                        time_bonus=float(sdata.get("time_bonus", 0.0)),
+                    )
+                    self.engine.score_manager._breakdown = breakdown
+        except Exception:
+            pass
 
-        self.engine.jobs = jobs
-        if self.engine.game_service:
-            self.engine.game_service.session_start = session_start
-            self.engine.game_service.set_jobs(jobs)
-            self.engine.jobs = list(self.engine.game_service.jobs)
-
-        last_job_id = snapshot.get("last_job_id")
-        if last_job_id:
-            lookup = {}
-            for job in self.engine.jobs:
-                if hasattr(job, "id"):
-                    lookup[job.id] = job
-            for job in courier.inventory.items:
-                if hasattr(job, "id"):
-                    lookup[job.id] = job
-            for job in courier.delivered_jobs:
-                if hasattr(job, "id"):
-                    lookup[job.id] = job
-            last_job = lookup.get(last_job_id)
-            if last_job:
-                self.engine.set_last_job(last_job)
-
-        score_manager = getattr(self.engine, "score_manager", None)
-        score_data = snapshot.get("score_breakdown")
-        if score_manager and score_data:
-            breakdown = ScoreBreakdown(
-                base_income=float(score_data.get("base_income", 0.0)),
-                penalty_total=float(score_data.get("penalty_total", 0.0)),
-                time_bonus=float(score_data.get("time_bonus", 0.0)),
-            )
-            score_manager._breakdown = breakdown
-
-        self._apply_weather_snapshot(snapshot.get("weather", {}))
-        if self.engine.courier:
-            self.engine.courier.weather = getattr(self.engine.weather_simulator, "current_condition", getattr(self.engine.courier, "weather", "clear"))
-
+        self._apply_weather_snapshot(snapshot.get("weather", {}) or {})
         self.paused = False
         self.pause_feedback = ""
         self.pause_feedback_time = 0.0
@@ -1799,4 +1901,3 @@ class View_game:
        footer = self.small_font.render("Up/Down: select   R: deliver selected   Q: reject selected   Esc: close", True, (170, 170, 170))
        self.screen.blit(footer, (inv_rect.x + 12, inv_rect.y + inv_h - 36))
 
-       
