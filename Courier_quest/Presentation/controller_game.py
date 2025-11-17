@@ -75,7 +75,9 @@ class controller_game:
         return self.game_service.get_last_job()
     
     def set_last_job_ia(self, job):
-        self.game_service.set_last_job(job)
+        # Debe registrar el último trabajo de la IA en su propio campo,
+        # no en el del jugador.
+        self.game_service.set_last_job_ia(job)
     
     def get_last_job_ia(self):
           return self.game_service.get_last_job_ia()
@@ -121,7 +123,7 @@ class controller_game:
 
         # 4) Courier
         self.courier = Courier(start_pos=(0, 0), max_weight=10)
-        self.ia = Ia(start_pos=(0,0), max_weight=10)
+        self.ia = Ia(start_pos=(0, 0), max_weight=10,city_map=self.city_map)
         print(f"Courier inicializado{self.courier.position}  e IA inicializada {self.ia.position}.")
 
     def _generate_initial_bursts(self):

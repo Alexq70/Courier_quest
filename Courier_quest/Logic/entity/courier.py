@@ -38,6 +38,12 @@ class Courier:
 
     def pick_job(self, job: Job) -> bool:
         """Intenta aceptar un pedido"""
+        # Solo puede tomar paquetes sin dueño o del propio jugador
+        owner = getattr(job, "owner", None)
+        if owner is not None and owner != "player":
+            return False
+        # Marcar propietario y agregar al inventario
+        job.owner = "player"
         added = self.inventory.add_job(job)
         if added:
             self.current_load = self.inventory.total_weight()

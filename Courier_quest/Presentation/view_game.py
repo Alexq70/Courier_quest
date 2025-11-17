@@ -32,7 +32,7 @@ class View_game:
         self.engine = controller_game()
         self.engine.start()
         #Aqui se uede obtner la opcion que escoja el usuario 1 Facil 2 Medio 3 Dificil
-        self.engine.ia.set_mode(1)  # Modo de dificultad FACIL para la IA
+        self.engine.ia.set_mode(1)  # Modo de dificultad DIFICIL para la IA
         self.player_name = (player_name or "Player").strip() or "Player"
         self.resume_requested = resume
         self.return_to_menu = False
@@ -50,7 +50,7 @@ class View_game:
         self.current_direction = 1  
         
         self.ia_move_timer=0.0
-        self.ia_move_delay=0.3
+        self.ia_move_delay=0.15
         self.current_direction_ia = 1 
         
         
@@ -131,7 +131,7 @@ class View_game:
         "remove":"remove.mp3",
         "rain":"rain.mp3",
         "roar":"roar.mp3",
-        "storm":"storm",
+        "storm":"storm.mp3",
         "remove":"remove_item.mp3",
         "rain":"rain.mp3",
         "roar":"roar.mp3",
@@ -820,28 +820,30 @@ class View_game:
             self.ia_move_timer = 0.0
 
             dx = dy = 0
-            if next_movement[0] == 2:
+            prev_pos = self.engine.ia.position
+            if next_movement[0] == 2:  # UP
                 dy = -1
                 self.current_direction_ia = 2
-            elif next_movement[0] == 3:
+            elif next_movement[0] == 3:  # DOWN
                 dy = 1
                 self.current_direction_ia = 3
-            elif next_movement[0] == 4:
+            elif next_movement[0] == 0:  # LEFT
                 dx = -1
-                self.current_direction_ia = 4
-            elif next_movement[0] == 5:
+                self.current_direction_ia = 0
+            elif next_movement[0] == 1:  # RIGHT
                 dx = 1
-                self.current_direction_ia = 5
+                self.current_direction_ia = 1
 
-            ia_x, ia_y = self.engine.ia.position
-            target_x, target_y = next_movement[1]
-            dx = target_x - ia_x
-            dy = target_y - ia_y
-
+            # Mover solo 1 celda por tick, evitando saltos grandes
             self.engine.move_ia(dx, dy)
             
             if not self.player_interacting:
                 self._pickup_job_ia()
+
+            # Recuperación de energía de la IA cuando no se mueve
+            ia = self.engine.ia
+            if ia.position == prev_pos and ia.stamina < ia.stamina_max:
+                ia.recover_stamina(1.0)
 
     def _movement_ia(self, dt: float): 
         jobs = self.engine.jobs
@@ -1309,7 +1311,7 @@ class View_game:
         # ------ 2. DIBUJAR DROP-OFFS DEL JUGADOR ------
         for job in self.engine.courier.inventory.get_all():
             x, y = job.dropoff
-            img = self.tile_images.get("D")
+            img = self.tile_images.get("W_NPC")
             if img:
                 self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
@@ -1317,7 +1319,7 @@ class View_game:
         # ------ 3. DIBUJAR DROP-OFFS DE LA IA ------
         for job in self.engine.ia.inventory.get_all():
             x, y = job.dropoff
-            img = self.tile_images.get("D")
+            img = self.tile_images.get("W_NPC")
             if img:
                 self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
@@ -1412,32 +1414,28 @@ class View_game:
                     self.play_Sound("error", 0)
 
         # ----------------- DELIVERY ------------------
-        if jobs is not None and jobs in ia_ref.inventory.get_all():
-
-            next_job = ia_ref.inventory.peek_next()
-
-            # Posición actual IA
+        # 1) Entrega inmediata si está exactamente en el dropoff del siguiente job del inventario
+        next_job = ia_ref.inventory.peek_next()
+        if next_job is not None:
             ia_x, ia_y = ia_ref.position
-
-            # Destino dropoff del job
-            drop_x, drop_y = jobs.dropoff
-
-            # Distancia Manhattan (rango flexible)
-            distance = abs(ia_x - drop_x) + abs(ia_y - drop_y)
-
-            # Si está dentro de 5 casillas del dropoff y es el job correcto
-            if next_job == jobs and distance <= 5:
-
-                # Registrar job entregado (affecta UI/score)
-                self.engine.set_last_job_ia(jobs)
-
-                # Sonido de entrega
+            drop_x, drop_y = next_job.dropoff
+            if ia_x == drop_x and ia_y == drop_y:
+                self.engine.set_last_job_ia(next_job)
                 self.play_Sound("acept", 0)
+                ia_ref.deliver_job(next_job)
+                ia_ref.prev = None
+                return
 
-                # Realizar entrega
+        # 2) Si el "job cercano" es del inventario y estamos lo bastante cerca, también entregar
+        if jobs is not None and jobs in ia_ref.inventory.get_all():
+            queued = ia_ref.inventory.peek_next()
+            ia_x, ia_y = ia_ref.position
+            drop_x, drop_y = jobs.dropoff
+            distance = abs(ia_x - drop_x) + abs(ia_y - drop_y)
+            if queued == jobs and distance <= 5:
+                self.engine.set_last_job_ia(jobs)
+                self.play_Sound("acept", 0)
                 ia_ref.deliver_job(jobs)
-
-                # Limpiar objetivo
                 ia_ref.prev = None
 
                     
@@ -1549,6 +1547,8 @@ class View_game:
         state_text = self.small_font.render(f"State: {display_state}", True, (255, 255, 255))
         self.screen.blit(stamina_text, (text_x, text_y))
         self.screen.blit(state_text, (text_x, text_y + 20))
+
+        # (Revertido) Sin HUD adicional para inventarios separados, mantener vista como estaba
 
 
     def _draw_controls(self):
