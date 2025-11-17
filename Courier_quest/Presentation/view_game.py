@@ -32,7 +32,7 @@ class View_game:
         self.engine = controller_game()
         self.engine.start()
         #Aqui se uede obtner la opcion que escoja el usuario 1 Facil 2 Medio 3 Dificil
-        self.engine.ia.set_mode(1)  # Modo de dificultad FACIL para la IA
+        self.engine.ia.set_mode(2)  # Modo de dificultad FACIL para la IA
         self.player_name = (player_name or "Player").strip() or "Player"
         self.resume_requested = resume
         self.return_to_menu = False
@@ -50,7 +50,7 @@ class View_game:
         self.current_direction = 1  
         
         self.ia_move_timer=0.0
-        self.ia_move_delay=0.3
+        self.ia_move_delay=0.15
         self.current_direction_ia = 1 
         
         

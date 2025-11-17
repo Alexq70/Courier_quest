@@ -276,38 +276,155 @@ class Ia:
             return False
         
 
-    def medium_mode(self,jobs):
+    def medium_mode(self, jobs):
         """
-        PRUEBA-Modo medio:
-        Movimiento aleatorio
+        Greedy avanzado:
+        Se dirige al pickup o dropoff más cercano evitando edificios.
+        Rodea obstáculos si la ruta directa está bloqueada.
         """
+        if not jobs:
+            return self.easy_mode(jobs)
 
-        # Direcciones posibles: izquierda, derecha, arriba, abajo
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        cx, cy = self.position
+        
+        # 1) Seleccionar objetivo más cercano
+        best_target = None
+        best_dist = float("inf")
 
-        # Escoge una dirección aleatoria
-        dx, dy = random.choice(directions)
+        for job in jobs:
+            if job in self.inventory.get_all():
+                tx, ty = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
+            else:
+                tx, ty = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
 
-        # Obtiene posición actual
-        current_x, current_y = self.position
+            if tx is None or ty is None:
+                continue
 
-        # Calcula nueva posición
-        new_x = current_x + dx
-        new_y = current_y + dy
+            d = abs(cx - tx) + abs(cy - ty)
+            if d < best_dist:
+                best_dist = d
+                best_target = (tx, ty)
 
-        # Retorna la nueva posición
-        return (new_x, new_y)
+        if best_target is None:
+            return self.easy_mode(jobs)
+
+        tx, ty = best_target
+
+        # 2) Generar candidatos ordenados por distancias
+        candidates = []
+        directions = [
+            (cx + 1, cy),  # derecha
+            (cx - 1, cy),  # izquierda
+            (cx, cy + 1),  # abajo
+            (cx, cy - 1),  # arriba
+        ]
+
+        for nx, ny in directions:
+            if self._is_valid_position(nx, ny):
+                d = abs(nx - tx) + abs(ny - ty)
+                candidates.append(((nx, ny), d))
+
+        if not candidates:
+            return self.easy_mode(jobs)
+
+        # 3) Ordenar por el movimiento que más reduce la distancia
+        candidates.sort(key=lambda x: x[1])
+
+        return candidates[0][0]
+
             
             
     def hard_mode(self, jobs):
         """
-        Modo difícil:
-        Igual mecánica que el easy_mode, pero elige el mejor movimiento
-        evaluando las 4 direcciones y escogiendo la que más reduce distancia
-        al objetivo (sin usar mapa ni engine).
+        Hard Mode: A* pathfinding real.
+        Rodea los edificios, evita loops y encuentra la ruta óptima.
         """
 
-        return
+        if not jobs:
+            return self.easy_mode(jobs)
+
+        cx, cy = self.position
+
+        # buscar job objetivo
+        best_job = None
+        best_dist = float("inf")
+
+        for job in jobs:
+            if job in self.inventory.get_all():
+                tx, ty = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
+            else:
+                tx, ty = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
+
+            if tx is None or ty is None:
+                continue
+
+            d = abs(cx - tx) + abs(cy - ty)
+            if d < best_dist:
+                best_dist = d
+                best_job = job
+
+        if not best_job:
+            return self.medium_mode(jobs)
+
+        if best_job in self.inventory.get_all():
+            target = getattr(best_job, "dropoff_position", None) or getattr(best_job, "dropoff", None)
+        else:
+            target = getattr(best_job, "pickup_position", None) or getattr(best_job, "pickup", None)
+
+        if not target:
+            return self.medium_mode(jobs)
+
+        # ejecutar A*
+        path = self.astar(self.position, target)
+
+        if path and len(path) > 1:
+            return path[1]   # siguiente paso
+
+        # si A* falla, fallback al greedy
+        return self.medium_mode(jobs)
+    
+    def _neighbors(self, node):
+        x, y = node
+        candidates = [(x+1,y),(x-1,y),(x,y+1),(x,y-1)]
+        return [(nx,ny) for nx,ny in candidates if self._is_valid_position(nx,ny)]
+    
+    def astar(self, start, goal, max_nodes=8000):
+        import heapq
+
+        def h(a, b):
+            return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+        open_set = []
+        heapq.heappush(open_set, (0, start))
+
+        came_from = {start: None}
+        g = {start: 0}
+
+        processed = 0
+
+        while open_set and processed < max_nodes:
+            _, current = heapq.heappop(open_set)
+            processed += 1
+
+            if current == goal:
+                # reconstruir ruta
+                path = []
+                c = current
+                while c:
+                    path.append(c)
+                    c = came_from[c]
+                return list(reversed(path))
+
+            for nb in self._neighbors(current):
+                new_cost = g[current] + 1
+                if new_cost < g.get(nb, float("inf")):
+                    g[nb] = new_cost
+                    f = new_cost + h(nb, goal)
+                    came_from[nb] = current
+                    heapq.heappush(open_set, (f, nb))
+
+        return None
+
 
 
     def obtain_movement(self, other):
