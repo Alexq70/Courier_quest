@@ -8,6 +8,14 @@ current_difficulty = "Medium"
 
 
 def run_start_menu(allow_resume=True):
+    """Ejecuta el menú principal del juego.
+    
+    Args:
+        allow_resume: Si permite la opción de reanudar juego guardado
+        
+    Returns:
+        tuple: (acción, nickname, dificultad) - acción puede ser "new", "resume" o "exit"
+    """
     global current_difficulty
     pygame.init()
     screen = pygame.display.set_mode((640, 420))
@@ -96,12 +104,28 @@ def run_start_menu(allow_resume=True):
 
 
 def run_start_menu_once(allow_resume=True):
+    """Ejecuta el menú principal una vez y retorna la selección.
+    
+    Args:
+        allow_resume: Si permite la opción de reanudar juego guardado
+        
+    Returns:
+        tuple: (acción, nickname, dificultad)
+    """
     choice, nickname, difficulty = run_start_menu(allow_resume=allow_resume)
     return choice, nickname, difficulty
 
 
 
 def run_difficulty_menu(screen):
+    """Ejecuta el menú de selección de dificultad.
+    
+    Args:
+        screen: Superficie de PyGame donde dibujar el menú
+        
+    Returns:
+        str or None: Dificultad seleccionada o None si se cancela
+    """
     # Fuentes: grande, mediana, pequeña
     title_font = pygame.font.SysFont(None, 54)
     option_font = pygame.font.SysFont(None, 40)
@@ -148,6 +172,16 @@ def run_difficulty_menu(screen):
 
 
 def prompt_for_name(screen, font, small_font):
+    """Solicita al usuario que ingrese un nickname.
+    
+    Args:
+        screen: Superficie de PyGame donde dibujar la interfaz
+        font: Fuente para texto principal
+        small_font: Fuente para texto secundario
+        
+    Returns:
+        str or None: Nickname ingresado o None si se cancela
+    """
     nickname = ""
     clock = pygame.time.Clock()
     while True:
@@ -188,6 +222,7 @@ def prompt_for_name(screen, font, small_font):
 
 
 def delete_existing_snapshot():
+    """Elimina el archivo de guardado existente si existe."""
     SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
     if SAVE_PATH.exists():
         try:
@@ -198,6 +233,7 @@ def delete_existing_snapshot():
 
 
 def main():
+    """Función principal que ejecuta el bucle completo del juego."""
     global current_difficulty
 
     while True:

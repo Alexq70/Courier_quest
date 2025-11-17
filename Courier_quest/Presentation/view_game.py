@@ -25,7 +25,7 @@ prev_ia = ''
 class View_game:
     """Interfaz gráfica con Pygame para Courier Quest.""" 
 
-    def __init__(self, player_name: Optional[str] = None, resume: bool = False, difficulty: str = "Easy"):
+    def __init__(self, player_name: Optional[str] = None, resume: bool = False, difficulty: str = "Medium"):
         """Inicializar Pygame, motor y cargar todos los assets."""
         pygame.init()
         pygame.mixer.init
