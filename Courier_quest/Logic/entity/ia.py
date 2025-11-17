@@ -1,6 +1,5 @@
 
 import time
-import random  
 from typing import Tuple, List, Optional
 from Logic.entity.job import Job
 from Logic.entity.inventory import Inventory
@@ -196,36 +195,23 @@ class Ia:
             return True
         return False
     
-    def _get_job_dropoff_position(self, job):
-        """Siempre retorna posición de DROPOFF (entrega)"""
-        if hasattr(job, "dropoff_position"):
-            return job.dropoff_position
-        elif hasattr(job, "dropoff"):
-            return job.dropoff
-        elif hasattr(job, "get_dropoff_position"):
-            return job.get_dropoff_position()
-        else:
-            return (0, 0)  # Fallback seguro
     
-    def next_movement_ia(self, job):
+    def next_movement_ia(self,jobs):
         """
-        Recibe un job individual y retorna el próximo movimiento que va a hacer en la vista la ia
+        Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
         """
-        options = (self.easy_mode(job), self.medium_mode(job), self.hard_mode(job)) # tupla con las opciones de recorrido
-        tupla = [None, None] # tupla que va a retornar (movimiento, coordenada)
+        options = (self.easy_mode(jobs),self.medium_mode(jobs),self.hard_mode(jobs)) # tupla con las opciones de recorrido
+        tupla = [None,None] # tupla que va a retornar (movimiento,coordenada)
         
-        if self.stamina == 0:
-            return [0, 0]
-            
-        if self.mode_deliver == 1:   # Fácil
+        if self.mode_deliver == 1:   #Facil
             tupla[0] = self.obtain_movement(options[0]) # le mandamos la coordenada nueva
             tupla[1] = options[0]
             
-        if self.mode_deliver == 2:   # Medio
+        if self.mode_deliver == 2:   #Medio
             tupla[0] = self.obtain_movement(options[1]) # le mandamos la coordenada nueva
             tupla[1] = options[1]
         
-        if self.mode_deliver == 3:    # Difícil
+        if self.mode_deliver == 3:    #Dificil
             tupla[0] = self.obtain_movement(options[2]) # le mandamos la coordenada nueva
             tupla[1] = options[2]
             
@@ -238,51 +224,56 @@ class Ia:
         self.mode_deliver = mode
         return
 
-    def easy_mode(self, job):
+    def easy_mode(self, jobs):
         """
-        Modo fácil CORREGIDO: Trabaja con job individual
-        - Si tiene el job en inventario, va al DROPOFF
-        - Si no tiene el job, va al PICKUP
-        - Lógica clara y simple con random choice
+        Modo fácil:
+        La IA se mueve aleatoriamente pero con tendencia hacia el pickup o dropoff.
         """
+
         current_x, current_y = self.position
 
-        # --- 1. Si hay job disponible, moverse hacia él ---
-        if job is not None:
-            # ✅ CORREGIDO: Si ya tiene el job en inventario, ir al DROPOFF
+        # Si hay jobs disponibles
+        if jobs:
+
+            # Elegir job actual: si prev existe, es el objetivo
+            job = self.prev if self.prev is not None else random.choice(jobs)
+
+            job_x = job_y = None
+
+            # --- Si YA lo tiene → ir al DROPOFF ---
             if job in self.inventory.get_all():
-                # Ir a la posición de ENTREGA (DROPOFF)
-                job_x, job_y = self._get_job_dropoff_position(job)
+                if hasattr(job, "dropoff_position") and job.dropoff_position:
+                    job_x, job_y = job.dropoff_position
+                elif hasattr(job, "dropoff") and job.dropoff:
+                    job_x, job_y = job.dropoff
+                elif hasattr(job, "get_dropoff_position"):
+                    job_x, job_y = job.get_dropoff_position()
+
+            # --- Si NO lo tiene → ir al PICKUP ---
             else:
-                # Ir a la posición de RECOGIDA (PICKUP)
-                job_x, job_y = self._get_job_pickup_position(job)
-            
+                if hasattr(job, "pickup_position") and job.pickup_position:
+                    job_x, job_y = job.pickup_position
+                elif hasattr(job, "pickup") and job.pickup:
+                    job_x, job_y = job.pickup
+                elif hasattr(job, "get_pickup_position"):
+                    job_x, job_y = job.get_pickup_position()
+
+            # --- Movimiento con tendencia hacia objetivo ---
             if job_x is not None and job_y is not None:
                 dx = dy = 0
 
-                # Movimiento hacia el objetivo (PICKUP o DROPOFF)
-                if job_x > current_x:
-                    dx = 1
-                elif job_x < current_x:
-                    dx = -1
-                    
-                if job_y > current_y:
-                    dy = 1
-                elif job_y < current_y:
-                    dy = -1
+                if job_x > current_x: dx = 1
+                elif job_x < current_x: dx = -1
+                elif job_y > current_y: dy = 1
+                elif job_y < current_y: dy = -1
 
-                # 70% de probabilidad de moverse hacia el pedido, 30% aleatorio
-                if random.random() < 0.7:
+                if random.random() < 0.4:
                     return (current_x + dx, current_y + dy)
 
-        # --- 2. Movimiento aleatorio ---
+        # Movimiento aleatorio si no hay objetivo o fallo
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         dx, dy = random.choice(directions)
-        new_x = current_x + dx
-        new_y = current_y + dy
-
-        return (new_x, new_y)
-
+        return (current_x + dx, current_y + dy)
 
     def medium_mode(self,jobs):
         """
@@ -307,10 +298,17 @@ class Ia:
         return (new_x, new_y)
             
             
-    def hard_mode(self,jobs):
-        """modo dificil de busqueda"""
+    def hard_mode(self, jobs):
+        """
+        Modo difícil:
+        Igual mecánica que el easy_mode, pero elige el mejor movimiento
+        evaluando las 4 direcciones y escogiendo la que más reduce distancia
+        al objetivo (sin usar mapa ni engine).
+        """
+
         return
-    
+
+
     def obtain_movement(self, other):
         """
         Recibe una coordenada objetivo 'other' (x,y) y devuelve un código de dirección entero:
