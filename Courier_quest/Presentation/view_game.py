@@ -1297,36 +1297,30 @@ class View_game:
                 1  
             )
 
-    def _draw_jobs(self): 
-        curr_job  = self.engine.get_last_job()
-        curr_job_ia = self.engine.get_last_job_ia()
-        
-        if curr_job is not None:
-            if curr_job.dropoff != (0,0) and self.prev is not None:
-                x1,y1 = curr_job.dropoff
-                self.engine.city_map.tiles[y1][x1] = self.prev
-       # se puede hace rque se imprima solo la promera vez
+    def _draw_jobs(self):
+
+        # ------ 1. DIBUJAR TODOS LOS PICKUPS QUE AÚN EXISTEN ------
         for job in self.engine.jobs:
             x, y = job.pickup
             img = self.tile_images.get("PE")
             self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+
+
+        # ------ 2. DIBUJAR DROP-OFFS DEL JUGADOR ------
         for job in self.engine.courier.inventory.get_all():
-            x, y = job.dropoff 
-            self.engine.city_map.tiles[y][x]="D"
-            
-        # parte de la IA
-        if curr_job_ia is not None:
-            if curr_job_ia.dropoff != (0,0) and self.prev_ia is not None:
-                x1,y1 = curr_job_ia.dropoff
-                self.engine.city_map.tiles[y1][x1] = self.prev_ia
-       # se puede hacer que se imprima solo la promera vez
-        for job in self.engine.jobs:
-            x, y = job.pickup
-            img = self.tile_images.get("PE")
-            self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+            x, y = job.dropoff
+            img = self.tile_images.get("D")
+            if img:
+                self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+
+
+        # ------ 3. DIBUJAR DROP-OFFS DE LA IA ------
         for job in self.engine.ia.inventory.get_all():
-            x, y = job.dropoff 
-            self.engine.city_map.tiles[y][x]="D"
+            x, y = job.dropoff
+            img = self.tile_images.get("D")
+            if img:
+                self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
+
             
 
 
@@ -1390,42 +1384,64 @@ class View_game:
                 else:
                     self.play_Sound("error",0)
                     
-    def _update_job_ia(self, jobs : Job):
-        """Gestiona aceptación y entrega del pedido cercano."""
+    def _update_job_ia(self, jobs: Job):
+        """Gestiona pickup y entrega de un job para la IA."""
         ia_ref = self.engine.ia
-        score_manager = getattr(self.engine, "score_manager", None)
-        
+
+        # ----------------- PICKUP ------------------
         if jobs is not None:
-            if jobs not in self.engine.ia.inventory.get_all():  # aún no tomado
-                if self.engine.ia.pick_job(jobs):
-                    x, y = jobs.dropoff
-                    # Guarda el tile anterior para saber qué hay en el destino
-                    self.prev_ia = self.engine.city_map.tiles[y][x]
-                    self.engine.ia.prev = x,y
+            # Si aún no está en inventario, intentar recogerlo
+            if jobs not in ia_ref.inventory.get_all():
 
-                    # Protección: evitar crash si el pedido ya fue removido
+                if ia_ref.pick_job(jobs):
+
+                    # Guardamos el job como objetivo de entrega
+                    ia_ref.prev = jobs  
+
+                    # Sacarlo del mapa para que deje de dibujarse
                     if jobs in self.engine.jobs:
-                        self.engine.jobs.remove(jobs)  # lo sacamos de la lista global
+                        self.engine.jobs.remove(jobs)
                     else:
-                        print(f"[WARN] Job {jobs} no estaba en la lista global (IA o jugador ya lo tomaron).")
+                        print(f"[WARN] Job {jobs} no estaba en la lista global.")
 
+                    # Sonido de pickup
                     self.play_Sound("catch", 0)
+
                 else:
-                    self.play_Sound("error", 0)       
+                    # No pudo recogerlo
+                    self.play_Sound("error", 0)
+
+        # ----------------- DELIVERY ------------------
+        if jobs is not None and jobs in ia_ref.inventory.get_all():
+
+            next_job = ia_ref.inventory.peek_next()
+
+            # Posición actual IA
+            ia_x, ia_y = ia_ref.position
+
+            # Destino dropoff del job
+            drop_x, drop_y = jobs.dropoff
+
+            # Distancia Manhattan (rango flexible)
+            distance = abs(ia_x - drop_x) + abs(ia_y - drop_y)
+
+            # Si está dentro de 5 casillas del dropoff y es el job correcto
+            if next_job == jobs and distance <= 5:
+
+                # Registrar job entregado (affecta UI/score)
+                self.engine.set_last_job_ia(jobs)
+
+                # Sonido de entrega
+                self.play_Sound("acept", 0)
+
+                # Realizar entrega
+                ia_ref.deliver_job(jobs)
+
+                # Limpiar objetivo
+                ia_ref.prev = None
+
                     
-        if self.engine.ia.prev is not None and jobs is not None:
-            if jobs in ia_ref.inventory.get_all():
-                next_job = ia_ref.inventory.peek_next()
-                if next_job == jobs:
-                    self.engine.set_last_job_ia(jobs)
-                    self.play_Sound("acept",0)
-                   # delivery_result = ia_ref.deliver_job(jobs)
-                   # if score_manager is not None:
-                   #     score_manager.register_delivery(jobs, delivery_result)
-                   # earned_delta = float(delivery_result.get("payout_applied", getattr(jobs, "payout", 0.0)))
-                   # self.earned += earned_delta
-                else:
-                    self.play_Sound("error",0)     
+                    
 
     def _draw_courier(self):
         x, y = self.engine.courier.position

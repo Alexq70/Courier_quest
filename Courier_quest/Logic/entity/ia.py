@@ -227,67 +227,53 @@ class Ia:
     def easy_mode(self, jobs):
         """
         Modo fácil:
-        El jugador CPU (IA) se mueve de forma aleatoria,
-        pero con una ligera tendencia a avanzar hacia un pedido cercano.
+        La IA se mueve aleatoriamente pero con tendencia hacia el pickup o dropoff.
         """
 
         current_x, current_y = self.position
 
-        # --- 1. Si existen pedidos ---s
+        # Si hay jobs disponibles
         if jobs:
-             if self.prev is not None:
-                job = self.prev
-             else:
-                job = random.choice(jobs)
-                
-             if self.prev is not None:
-                 # Intenta obtener la posición del pedido
-                job_x = job_y = None
-                if hasattr(job, "dropoff_position"):
-                   job_x, job_y = job.dropoff_position
-                elif hasattr(job, "dropoff"):
-                   job_x, job_y = job.dropoff
+
+            # Elegir job actual: si prev existe, es el objetivo
+            job = self.prev if self.prev is not None else random.choice(jobs)
+
+            job_x = job_y = None
+
+            # --- Si YA lo tiene → ir al DROPOFF ---
+            if job in self.inventory.get_all():
+                if hasattr(job, "dropoff_position") and job.dropoff_position:
+                    job_x, job_y = job.dropoff_position
+                elif hasattr(job, "dropoff") and job.dropoff:
+                    job_x, job_y = job.dropoff
                 elif hasattr(job, "get_dropoff_position"):
-                   job_x, job_y = job.get_dropoff_position()
-             else:
-                # Selecciona un pedido al azar
-               job = random.choice(jobs)
+                    job_x, job_y = job.get_dropoff_position()
 
-               # Intenta obtener la posición del pedido
-               job_x = job_y = None
-               if hasattr(job, "pickup_position"):
-                   job_x, job_y = job.pickup_position
-               elif hasattr(job, "pickup"):
-                   job_x, job_y = job.pickup
-               elif hasattr(job, "get_pickup_position"):
-                   job_x, job_y = job.get_pickup_position()
+            # --- Si NO lo tiene → ir al PICKUP ---
+            else:
+                if hasattr(job, "pickup_position") and job.pickup_position:
+                    job_x, job_y = job.pickup_position
+                elif hasattr(job, "pickup") and job.pickup:
+                    job_x, job_y = job.pickup
+                elif hasattr(job, "get_pickup_position"):
+                    job_x, job_y = job.get_pickup_position()
 
-            # --- 2. Movimiento con tendencia al pedido ---
-             if job_x is not None and job_y is not None:
+            # --- Movimiento con tendencia hacia objetivo ---
+            if job_x is not None and job_y is not None:
                 dx = dy = 0
 
-                # Se mueve un paso hacia el pedido
-                if job_x > current_x:
-                    dx = 1
-                elif job_x < current_x:
-                    dx = -1
-                elif job_y > current_y:
-                    dy = 1
-                elif job_y < current_y:
-                    dy = -1
+                if job_x > current_x: dx = 1
+                elif job_x < current_x: dx = -1
+                elif job_y > current_y: dy = 1
+                elif job_y < current_y: dy = -1
 
-                # 50% de probabilidad de moverse hacia el pedido
-                if random.random() < 0.5:
+                if random.random() < 0.4:
                     return (current_x + dx, current_y + dy)
 
-        # --- 3. Movimiento aleatorio puro ---
+        # Movimiento aleatorio si no hay objetivo o fallo
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         dx, dy = random.choice(directions)
-        new_x = current_x + dx
-        new_y = current_y + dy
-
-        return (new_x, new_y)
-
+        return (current_x + dx, current_y + dy)
 
     def medium_mode(self,jobs):
         """
@@ -312,10 +298,17 @@ class Ia:
         return (new_x, new_y)
             
             
-    def hard_mode(self,jobs):
-        """modo dificil de busqueda"""
+    def hard_mode(self, jobs):
+        """
+        Modo difícil:
+        Igual mecánica que el easy_mode, pero elige el mejor movimiento
+        evaluando las 4 direcciones y escogiendo la que más reduce distancia
+        al objetivo (sin usar mapa ni engine).
+        """
+
         return
-    
+
+
     def obtain_movement(self, other):
         """
         Recibe una coordenada objetivo 'other' (x,y) y devuelve un código de dirección entero:

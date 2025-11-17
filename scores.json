@@ -1,5 +1,20 @@
 [
   {
+    "player_name": "a",
+    "total_points": 1736.432,
+    "base_income": 1566.5,
+    "penalties": 0.0,
+    "time_bonus": 169.93200000000002,
+    "earned": 1566.5,
+    "goal": 1500.0,
+    "reputation": 100.0,
+    "delivered": 7,
+    "time_spent": 50.33999999999991,
+    "time_left": 849.6600000000001,
+    "finished_at": 1763340527.0393047,
+    "reason": "total_earned"
+  },
+  {
     "player_name": "Alex",
     "total_points": 1638.0128,
     "base_income": 1549.5,
