@@ -1,4 +1,3 @@
-
 import time
 from typing import Tuple, List, Optional
 from Logic.entity.job import Job
@@ -24,9 +23,10 @@ class Ia:
         self.position: Tuple[int, int] = start_pos
         self.max_weight: float = max_weight
         self.current_load: float = 0.0
-        self.inventory: Inventory = Inventory(max_weight)
-        self.delivered_jobs: List[Job] = []
-        self.total_earned: float = 0.0
+        self.inventory = Inventory(max_weight)  # si no existe ya
+        self.delivered_jobs = []
+        self.earned = 0.0  # ganancias acumuladas (usado en el resto del juego)
+        self.total_earned = 0.0  # mantenido por compatibilidad histórica
         self.exhausted_lock: bool = False # Bloqueo por agotamiento
         self.weather = "clear"  # valor inicial por defecto
         self.reputation = 70  # valor inicial
@@ -65,7 +65,9 @@ class Ia:
         return added
 
     def deliver_job(self, job: Job) -> dict:
-        """Registra la entrega y devuelve datos utiles para puntaje."""
+        """Entregar job: remover del inventario, agregar a entregados y sumar payout.
+        Retorna un dict con el resultado y el payout aplicado.
+        """
         now = time.time()
         deadline_ts = job.get_deadline_timestamp()
         delta = None if deadline_ts is None else deadline_ts - now
@@ -97,21 +99,18 @@ class Ia:
             bonus_multiplier = 1.05
             payout *= bonus_multiplier
 
-        self.total_earned += payout
-        self.inventory.remove_job(job)
+        # No sumar a total_earned aquí para evitar doble cuenta; usar self.earned
+        removed = self.inventory.remove_job(job)
+        if not removed:
+            return {"success": False, "payout_applied": 0.0}
+
         self.delivered_jobs.append(job)
-        self.current_load = self.inventory.total_weight()
-
-        reputation_delta = self.reputation - reputation_before
-
-        return {
-            "payout_applied": payout,
-            "base_payout": base_payout,
-            "bonus_multiplier": bonus_multiplier,
-            "lateness_seconds": lateness_seconds,
-            "reputation_delta": reputation_delta,
-            "was_late": lateness_seconds > 0,
-        }
+        payout = float(getattr(job, "payout", 0.0) or 0.0)
+        # aplicar ajustes si hay reglas (por ejemplo penalizaciones o multiplicadores)
+        self.earned += payout
+        # mantener total_earned en sync (opcional)
+        self.total_earned = self.earned
+        return {"success": True, "payout_applied": payout}
 
     def move_ia(self, width, height, citymap, dx: int, dy: int, record_step: bool = True):
         """Mueve la IA en la dirección especificada si es posible.

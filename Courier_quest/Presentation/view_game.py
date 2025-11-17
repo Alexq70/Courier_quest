@@ -11,13 +11,14 @@ from Presentation.controller_game import controller_game
 from Logic.entity.courier import Courier
 from Logic.entity import courier
 from Logic.entity.ia import Ia
+from Logic.entity.inventory import Inventory
 
 
 from Data.score_repository import ScoreRepository
 from Logic.score_manager import ScoreBreakdown
 
 CELL_SIZE = 20
-HUD_HEIGHT = 75
+HUD_HEIGHT = 180  # ajustado para asegurar espacio suficiente
 FPS = 60
 prev = ''
 prev_ia = ''
@@ -246,11 +247,20 @@ class View_game:
                     self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
                     if self.remaining_time <= 0.0:
                         self._finish_game(reason="time_up")
-                        
+
+                # --- FIN POR ALCANZAR META: jugador O IA ---
                 if self.state == "running" and not self.paused:
-                    if self.earned >= self.goal:
+                    # jugador
+                    if getattr(self, "earned", 0.0) >= float(getattr(self, "goal", 0.0) or 0.0):
                         self._finish_game(reason="total_earned")
-                        
+                    # IA
+                    ia = getattr(self.engine, "ia", None)
+                    if ia is not None:
+                        ia_earned = float(getattr(ia, "earned", 0.0) or 0.0)
+                        goal_value = float(getattr(self, "goal", 0.0) or 0.0)
+                        if goal_value > 0 and ia_earned >= goal_value:
+                            self._finish_game(reason="ia_reached_goal")
+
                 if self.state == "running":
                     if not self.paused:
                         self.engine.update()
@@ -285,7 +295,7 @@ class View_game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "running":
-                        self._finish_game(reason="manual")
+                        self._finish
                     else:
                         self.return_to_menu = True
                         self.running = False
@@ -329,46 +339,113 @@ class View_game:
                     elif event.key == pygame.K_2:
                         self.ordered_jobs = self.engine.courier.inventory.ordered_jobs("deadline")
 
-    def _finish_game(self, reason="manual"):
-        if self.state != "running":
-            return
+    def _finish_game(self, reason: str = "unknown"):
+        """Finaliza la partida y prepara las estadísticas para la pantalla final."""
         courier = self.engine.courier
+
+        # Asegurar tiempos consistentes
         self.elapsed_time = min(self.elapsed_time, float(self.session_duration))
         self.remaining_time = max(0.0, self.session_duration - self.elapsed_time)
-        earned_total = getattr(courier, "total_earned", self.earned)
+
+        # Mantener compatibilidad con total_earned histórico
+        earned_total = float(getattr(courier, "total_earned", self.earned) or self.earned)
         self.earned = earned_total
-        self.state = "finished"
 
-        delivered_count = len(getattr(courier, "delivered_jobs", []))
-        reputation_value = getattr(courier, "reputation", 0)
+        # tiempos
+        total_duration = int(getattr(self, "session_duration", 15 * 60))
+        remaining = int(getattr(self, "remaining_time", 0))
+        time_spent = max(0, total_duration - remaining)
+        time_left = max(0, remaining)
 
+        # valores generales
+        goal_value = float(getattr(self, "goal", 0.0) or 0.0)
+
+        # Player (courier) stats
+        player_earned = float(getattr(self, "earned", 0.0) or 0.0)
+        player_deliveries = int(len(getattr(courier, "delivered_jobs", []) or []))
+        player_reputation = float(getattr(courier, "reputation", 0.0) or 0.0)
+        player_points = int(getattr(self, "points", int(player_earned)))  # fallback
+        player_time_bonus = int(getattr(self, "time_bonus", 0))
+        player_penalties = int(getattr(self, "penalties", 0))
+
+        # IA stats
+        ia = getattr(self.engine, "ia", None)
+        ia_earned = float(getattr(ia, "earned", 0.0) or 0.0)
+        ia_deliveries = int(len(getattr(ia, "delivered_jobs", []) or []))
+        ia_reputation = float(getattr(ia, "reputation", 0.0) or 0.0)
+        # Si el ScoreManager mantiene breakdown por actor, se podría extraer aquí.
+        ia_points = int(getattr(ia, "points", int(ia_earned)))  # fallback
+        ia_time_bonus = int(getattr(ia, "time_bonus", 0))
+        ia_penalties = int(getattr(ia, "penalties", 0))
+
+        # Determinar ganador (priorizar alcanzar la meta)
+        if goal_value > 0:
+            if ia_earned >= goal_value and player_earned >= goal_value:
+                winner = "Tie"
+            elif ia_earned >= goal_value:
+                winner = "IA"
+            elif player_earned >= goal_value:
+                winner = "Player"
+            else:
+                # ninguno alcanzó meta: quien tenga más earned
+                if ia_earned > player_earned:
+                    winner = "IA"
+                elif player_earned > ia_earned:
+                    winner = "Player"
+                else:
+                    winner = "Tie"
+        else:
+            # sin goal definido, comparar earned
+            if ia_earned > player_earned:
+                winner = "IA"
+            elif player_earned > ia_earned:
+                winner = "Player"
+            else:
+                winner = "Tie"
+
+        # motivo final
+        final_reason = reason or getattr(self, "final_reason", "unknown")
+
+        # Guardar estadísticas planas (compatibilidad con el resto del código)
         self.final_stats = {
-            "time_spent": self.elapsed_time,
-            "time_left": self.remaining_time,
-            "earned": earned_total,
-            "goal": self.goal,
-            "reputation": reputation_value,
-            "delivered": delivered_count,
-            "reason": reason,
-            "player_name": self.player_name,
+            "player_name": getattr(self, "player_name", "Player"),
+            "time_spent": int(time_spent),
+            "time_left": int(time_left),
+            "points": player_points,
+            "time_bonus": player_time_bonus,
+            "penalties": player_penalties,
+            "earned": float(player_earned),
+            "goal": float(goal_value),
+            "reputation": player_reputation,
+            "deliveries": player_deliveries,
+            "reason": final_reason,
+            # IA résumé (para compatibilidad con pantallas que esperan claves ia_*)
+            "ia_earned": ia_earned,
+            "ia_delivered": ia_deliveries,
+            "ia_reputation": ia_reputation,
+            # Resultado
+            "winner": winner,
+            # Además, datos estructurados por entidad
+            "player_stats": {
+                "earned": player_earned,
+                "delivered": player_deliveries,
+                "reputation": player_reputation,
+                "points": player_points,
+                "time_bonus": player_time_bonus,
+                "penalties": player_penalties,
+            },
+            "ia_stats": {
+                "earned": ia_earned,
+                "delivered": ia_deliveries,
+                "reputation": ia_reputation,
+                "points": ia_points,
+                "time_bonus": ia_time_bonus,
+                "penalties": ia_penalties,
+            },
         }
 
-        if reason == "manual":
-            self.return_to_menu = True
-
-        score_manager = getattr(self.engine, "score_manager", None)
-        if score_manager is not None:
-            breakdown = score_manager.finalize(self.remaining_time, self.session_duration)
-            score_data = breakdown.as_dict()
-            self.final_stats["score"] = score_data
-            self._store_score_record(score_data, reputation_value, delivered_count, reason)
-
-        if reason != "manual":
-            self._delete_snapshot()
-
-        if pygame.mixer.get_init():
-            pygame.mixer.music.fadeout(500)
-        pygame.display.set_caption("Courier Quest - Resultado")
+        # cambiar estado para que dibuje la pantalla final
+        self.state = "finished"
 
     def _store_score_record(self, score_data: dict, reputation_value: float, delivered_count: int, reason: str) -> None:
         repository = getattr(self, "score_repository", None)
@@ -395,81 +472,71 @@ class View_game:
             print(f"[Score] Unable to store score: {exc}")
 
     def _draw_end_screen(self):
-        self.screen.fill((15, 15, 40))
-        width, height = self.screen.get_size()
-        box_width = int(width * 0.8)
-        box_height = int(height * 0.6)
-        panel = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
-        panel.fill((0, 0, 0, 190))
-        panel_rect = panel.get_rect(center=(width // 2, height // 2))
-        self.screen.blit(panel, panel_rect)
+        """Dibuja la pantalla de fin de sesión con las mismas stats del ejemplo."""
+        if not getattr(self, "final_stats", None):
+            return
 
-        stats = self.final_stats or {}
-        goal_value = stats.get("goal", 0.0) or 0.0
-        earned_value = stats.get("earned", 0.0) or 0.0
-        time_spent = stats.get("time_spent", stats.get("time", 0.0))
-        time_left = stats.get("time_left", 0.0)
-        reason_label = self._get_finish_reason_text(stats.get("reason"))
-        score_data = stats.get("score", {})
+        stats = self.final_stats
+        w, h = self.screen.get_size()
 
-        try:
-            goal_value = float(goal_value)
-        except (TypeError, ValueError):
-            goal_value = 0.0
-        try:
-            earned_value = float(earned_value)
-        except (TypeError, ValueError):
-            earned_value = 0.0
-        try:
-            time_spent = float(time_spent)
-        except (TypeError, ValueError):
-            time_spent = 0.0
-        try:
-            time_left = float(time_left)
-        except (TypeError, ValueError):
-            time_left = 0.0
-        try:
-            total_points = float(score_data.get("total_points", 0.0) or 0.0)
-        except (TypeError, ValueError):
-            total_points = 0.0
-        try:
-            time_bonus_value = float(score_data.get("time_bonus", 0.0) or 0.0)
-        except (TypeError, ValueError):
-            time_bonus_value = 0.0
-        try:
-            penalty_value = float(score_data.get("penalty_total", 0.0) or 0.0)
-        except (TypeError, ValueError):
-            penalty_value = 0.0
+        # Fondo semi-transparente y panel central
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
 
+        panel_w, panel_h = min(600, w - 80), min(420, h - 120)
+        panel_x = (w - panel_w) // 2
+        panel_y = (h - panel_h) // 2
+        panel = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+        pygame.draw.rect(self.screen, (18, 20, 30), panel)
+        pygame.draw.rect(self.screen, (30, 30, 40), panel, 8)
+
+        # Título
         title = self.font.render("Session complete", True, (255, 255, 255))
-        self.screen.blit(title, (panel_rect.x + 30, panel_rect.y + 40))
+        self.screen.blit(title, (panel_x + 20, panel_y + 20))
 
-        player_label = stats.get("player_name", self.player_name)
+        # Formatear tiempos mm:ss
+        def fmt(t):
+            m = int(t) // 60
+            s = int(t) % 60
+            return f"{m:02d}:{s:02d}"
+
         lines = [
-            f"Player: {player_label}",
-            f"Time spent: {self._format_time(time_spent)}",
-            f"Time left: {self._format_time(time_left)}",
-            f"Points: {total_points:.0f}",
-            f"Time bonus: +{time_bonus_value:.0f}",
-            f"Penalties: -{penalty_value:.0f}",
-            f"Earnings: {earned_value:.0f} / {goal_value:.0f}",
-            f"Reputation: {stats.get('reputation', 0)}",
-            f"Deliveries: {stats.get('delivered', 0)}",
-            f"Reason: {reason_label}",
+            f"Player: {stats.get('player_name','Player')}",
+            f"Time spent: {fmt(stats.get('time_spent', 0))}",
+            f"Time left: {fmt(stats.get('time_left', 0))}",
+            f"Points: {stats.get('points', 0)}",
+            f"Time bonus: {stats.get('time_bonus', 0):+d}",
+            f"Penalties: {stats.get('penalties', 0):+d}",
+            f"Earnings: {int(stats.get('earned',0))} / {int(stats.get('goal',0))}",
+            f"Reputation: {int(stats.get('reputation',0))}",
+            f"Deliveries: {int(stats.get('deliveries',0))}",
+            f"Reason: {stats.get('reason','')}",
         ]
 
-        content_font = self.small_font
-        content_color = (220, 220, 220)
-        base_y = panel_rect.y + 110
-        line_spacing = 26
+        # Texto en panel
+        start_y = panel_y + 80
+        for i, text in enumerate(lines):
+            surf = self.small_font.render(text, True, (200, 200, 200))
+            self.screen.blit(surf, (panel_x + 28, start_y + i * 30))
 
-        for idx, message in enumerate(lines):
-            line_surface = content_font.render(message, True, content_color)
-            self.screen.blit(line_surface, (panel_rect.x + 30, base_y + idx * line_spacing))
+        # Instrucciones para salir
+        instr = self.small_font.render("Press Enter or Esc to exit", True, (150, 150, 150))
+        self.screen.blit(instr, (panel_x + 28, panel_y + panel_h - 40))
 
-        instruction = content_font.render("Press Enter or Esc to exit", True, (200, 200, 200))
-        instruction_y = panel_rect.y + box_height - 40
-        self.screen.blit(instruction, (panel_rect.x + 30, instruction_y))
+        # (Opcional) mostrar IA stats en columna a la derecha si hay espacio
+        if panel_w > 420:
+            ia_x = panel_x + panel_w - 200
+            ia_y = panel_y + 80
+            ia_lines = [
+                "IA stats:",
+                f"Earned: {int(stats.get('ia_earned',0))}",
+                f"Delivered: {int(stats.get('ia_delivered',0))}",
+                f"Reputation: {int(stats.get('ia_reputation',0))}",
+            ]
+            for j, t in enumerate(ia_lines):
+                surf = self.small_font.render(t, True, (200, 200, 200))
+                self.screen.blit(surf, (ia_x, ia_y + j * 26))
 
     def _format_time(self, seconds: float) -> str:
         try:
@@ -554,7 +621,8 @@ class View_game:
 
     def _apply_weather_snapshot(self, data: dict) -> None:
         simulator = getattr(self.engine, "weather_simulator", None)
-        if not simulator or not data:
+        
+        if not simulator:
             return
         simulator.current_condition = data.get("current_condition", simulator.current_condition)
         simulator.current_intensity = data.get("current_intensity", simulator.current_intensity)
@@ -573,8 +641,10 @@ class View_game:
         if courier:
             courier.weather = simulator.current_condition
 
-    def _save_game_snapshot(self) -> None:
+    def _save_game_snapshot(self):
+        """Guarda una snapshot JSON con el estado mínimo para reanudar la partida."""
         save_path = self._get_save_path()
+        save_path.parent.mkdir(parents=True, exist_ok=True)
         courier = self.engine.courier
         score_manager = getattr(self.engine, "score_manager", None)
         snapshot = {
@@ -782,7 +852,7 @@ class View_game:
         dx = dy = 0
         self._pickup_job()
         if keys[pygame.K_BACKSPACE]:
-            dx, dy = self.engine.get_steps()
+            dx
             self._move_courier(dx, dy,False)
             self.move_timer = 0
         else:
@@ -1399,6 +1469,17 @@ class View_game:
     def _update_job_ia(self, jobs: Job):
         """Gestiona pickup y entrega de un job para la IA."""
         ia_ref = self.engine.ia
+        score_manager = getattr(self.engine, "score_manager", None)
+
+        if len(ia_ref.inventory.get_all())>0 and ia_ref.posibility_lose_job():
+            lost_job = ia_ref.inventory.random_job()
+            if lost_job:
+                self.engine.set_last_job(lost_job)
+                ia_ref.inventory.remove_job(lost_job)
+                self.play_Sound("fall",0)
+                if score_manager is not None:
+                    score_manager.register_cancellation(jobs)
+                    ia_ref.adjust_reputation(-6)  # posibilidad de extraviar un pedido
 
         # ----------------- PICKUP ------------------
         if jobs is not None:
@@ -1424,7 +1505,6 @@ class View_game:
                     self.play_Sound("error", 0)
 
         # ----------------- DELIVERY ------------------
-        # 1) Entrega inmediata si está exactamente en el dropoff del siguiente job del inventario
         next_job = ia_ref.inventory.peek_next()
         if next_job is not None:
             ia_x, ia_y = ia_ref.position
@@ -1432,8 +1512,13 @@ class View_game:
             if ia_x == drop_x and ia_y == drop_y:
                 self.engine.set_last_job_ia(next_job)
                 self.play_Sound("acept", 0)
-                ia_ref.deliver_job(next_job)
+                # recoger resultado de la entrega y actualizar earned de la IA
+                delivery_result = ia_ref.deliver_job(next_job)
                 ia_ref.prev = None
+
+                # registrar en score manager si existe
+                if score_manager is not None and delivery_result.get("success"):
+                    score_manager.register_delivery(next_job, delivery_result, actor="ia")
                 return
 
         # 2) Si el "job cercano" es del inventario y estamos lo bastante cerca, también entregar
@@ -1488,79 +1573,81 @@ class View_game:
         self._draw_ia()
 
     def _draw_hud(self):
-        # Barra inferior
+        """Dibuja el HUD inferior con layout responsivo y sin solapamientos."""
         w, h = self.screen.get_size()
         hud_rect = pygame.Rect(0, h - HUD_HEIGHT, w, HUD_HEIGHT)
         pygame.draw.rect(self.screen, (30, 30, 30), hud_rect)
 
-        # Tiempo
+        padding = 20
+        gap = 12
+
+        # medir alturas de texto
+        main_h = self.font.get_height()
+        small_h = self.small_font.get_height()
+
+        # --- Left column: tiempo + earnings jugador ---
+        left_x = padding
+        left_y = h - HUD_HEIGHT + padding
         remaining_text = f"Time left: {self._format_time(self.remaining_time)}"
         time_surf = self.font.render(remaining_text, True, (255, 255, 255))
-        self.screen.blit(time_surf, (10, h - HUD_HEIGHT + 10))
+        self.screen.blit(time_surf, (left_x, left_y))
 
-        # Earnings
-        earn_surf = self.font.render(
-            f"Earnings: {int(self.earned)}/{self.goal}", True, (200, 200, 50)
-        )
-        self.screen.blit(earn_surf, (10, h - HUD_HEIGHT + 40))
+        earn_y = left_y + main_h + 6
+        player_earned = int(getattr(self, "earned", 0.0) or 0.0)
+        goal_value = int(getattr(self, "goal", 0.0) or 0.0)
+        earn_surf = self.font.render(f"Earnings: {player_earned} / {goal_value}", True, (200, 200, 50))
+        self.screen.blit(earn_surf, (left_x, earn_y))
 
-        # Botonn Inventory
-    
-        self.inv_button = pygame.Rect(w - 200, h - HUD_HEIGHT + 10, 180, 35)
-        pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=5)
+        # --- Right column: IA block (fixed width) ---
+        right_w = 260
+        right_x = w - padding +20 - right_w
+        right_y = h - HUD_HEIGHT + padding
+        ia = getattr(self.engine, "ia", None)
+        if ia:
+            ia_earned = int(getattr(ia, "earned", 0.0) or 0.0)
+            ia_rep = int(getattr(ia, "reputation", 0.0) or 0.0)
+            ia_st = float(getattr(ia, "stamina", 0.0) or 0.0)
+            ia_max = float(getattr(ia, "stamina_max", 100.0) or 100.0)
+
+            self.screen.blit(self.small_font.render("IA", True, (200, 200, 200)), (right_x, right_y))
+            self.screen.blit(self.small_font.render(f"Earnings: {ia_earned}", True, (200, 200, 50)), (right_x, right_y + small_h + 6))
+            self.screen.blit(self.small_font.render(f"Rep: {ia_rep}", True, (200, 200, 200)), (right_x, right_y + 2 * (small_h + 6)))
+
+            ia_bar_y = right_y + 3 * (small_h + 6)
+            ia_bar_w, ia_bar_h = right_w - 10, 12
+            ia_pct = max(0.0, min(1.0, ia_st / ia_max if ia_max > 0 else 0.0))
+            pygame.draw.rect(self.screen, (60, 60, 60), (right_x, ia_bar_y, ia_bar_w, ia_bar_h))
+            pygame.draw.rect(self.screen, (80, 200, 120), (right_x, ia_bar_y, int(ia_bar_w * ia_pct), ia_bar_h))
+            self.screen.blit(self.small_font.render(f"Stamina: {int(ia_st)}/{int(ia_max)}", True, (200, 200, 200)), (right_x, ia_bar_y + ia_bar_h + 6))
+
+
+
+        # --- Bottom-right: tres botones distribuidos sin solaparse ---
+        btn_w = int(min(160, (right_w - 155)))  # botones dentro del área derecha
+        btn_h = 30
+        gap_btn = 10
+        # calcular base para los 3 botones alineados antes del panel derecho
+        total_btns_w = btn_w * 3 + gap_btn * 2
+        btn_start_x = right_x - gap_btn - total_btns_w
+        btn_y = h - HUD_HEIGHT + (HUD_HEIGHT - btn_h) // 1.5
+
+        # Inventory
+        self.inv_button = pygame.Rect(btn_start_x, btn_y, btn_w, btn_h)
+        pygame.draw.rect(self.screen, (70, 70, 200), self.inv_button, border_radius=6)
+        self.screen.blit(self.small_font.render("Inventory (I)", True, (255, 255, 255)), (self.inv_button.x + 12, self.inv_button.y + 8))
+
+        # Controls
+        controls_x = btn_start_x + btn_w + gap_btn
+        self.controls_button = pygame.Rect(controls_x, btn_y, btn_w, btn_h)
+        pygame.draw.rect(self.screen, (70, 200, 70), self.controls_button, border_radius=6)
+        self.screen.blit(self.small_font.render("Controls (C)", True, (255, 255, 255)), (self.controls_button.x + 12, self.controls_button.y + 8))
+
+        # Pause
+        pause_x = controls_x + btn_w + gap_btn
+        self.pause_button = pygame.Rect(pause_x, btn_y, btn_w, btn_h)
+        pygame.draw.rect(self.screen, (180, 180, 180), self.pause_button, border_radius=6)
+        self.screen.blit(self.small_font.render("Pause (P)", True, (20, 20, 20)), (self.pause_button.x + 12, self.pause_button.y + 8))
         
-
-        btn_text = self.font.render("Inventory (press I)", True, (255, 255, 255))
-        self.screen.blit(btn_text, (w - 200, h - HUD_HEIGHT + 15))
-        
-        # Botonn Controls
-        self.con_button = pygame.Rect(w - 400, h - HUD_HEIGHT + 10, 180, 35)
-        pygame.draw.rect(self.screen, (70, 70, 200), self.con_button, border_radius=5)
-        
-        btn_controls = self.font.render("Controls (press C) ", True, (200, 200, 50))
-        self.screen.blit(btn_controls, (w - 400, h - HUD_HEIGHT + 15))
-
-        # Barra de stamina (energÃ­a)
-        courier = self.engine.courier
-        ia = self.engine.ia
-        stamina_pct = courier.get_stamina_percentage()
-        stamina_actual = int(courier.stamina)
-        stamina_max = int(courier.stamina_max)
-        stamina_state = courier.get_stamina_state()
-        display_state = {"Normal": "Normal", "Tired": "Tired", "Exhausted": "Exhausted"}.get(stamina_state, stamina_state)
-
-        bar_height = HUD_HEIGHT - 20
-        bar_width = 20
-        bar_x = 10
-        bar_y = h - HUD_HEIGHT - bar_height - 10  #  estÃ¡ justo encima del HUD
-
-        # Fondo de la barra
-        pygame.draw.rect(self.screen, (80, 80, 80), (bar_x, bar_y, bar_width, bar_height), border_radius=4)
-
-        # Color segÃºn estado
-        if stamina_state == "Normal":
-            color = (0, 200, 0)
-        elif stamina_state == "Tired":
-            color = (255, 200, 0)
-        else:
-            color = (200, 0, 0)
-
-        # Relleno proporcional
-        fill_height = int(bar_height * stamina_pct)
-        fill_y = bar_y + (bar_height - fill_height)
-        pygame.draw.rect(self.screen, color, (bar_x, fill_y, bar_width, fill_height), border_radius=4)
-
-        # Texto: nÃºmero y estado
-        text_x = bar_x + 30
-        text_y = bar_y + bar_height // 2 - 10
-        stamina_text = self.small_font.render(f"Energy: {stamina_actual}/{stamina_max}", True, (255, 255, 255))
-        state_text = self.small_font.render(f"State: {display_state}", True, (255, 255, 255))
-        self.screen.blit(stamina_text, (text_x, text_y))
-        self.screen.blit(state_text, (text_x, text_y + 20))
-
-        # (Revertido) Sin HUD adicional para inventarios separados, mantener vista como estaba
-
-
     def _draw_controls(self):
         """Muestra el panel de controles"""
         if not getattr(self, "show_controls", False):
@@ -1602,37 +1689,114 @@ class View_game:
            return
 
        w, h = self.screen.get_size()
-       inv_rect = pygame.Rect(w//2 - 175, h//2 - 130, 400, 300)
+       inv_w, inv_h = 560, 360
+       inv_rect = pygame.Rect((w - inv_w) // 2, (h - inv_h) // 2, inv_w, inv_h)
        pygame.draw.rect(self.screen, (50, 50, 50), inv_rect, border_radius=10)
        pygame.draw.rect(self.screen, (200, 200, 200), inv_rect, 2, border_radius=10)
 
        title = self.font.render("Inventory", True, (255, 255, 255))
        self.screen.blit(title, (inv_rect.x + 10, inv_rect.y + 10))
-       capacity = self.font.render( f"Capacity: {self.engine.courier.inventory.max_weight} kg." , True, (255, 255, 255))
-       self.screen.blit(capacity, (inv_rect.x + 210, inv_rect.y + 10))
+       capacity = self.font.render(f"Capacity: {self.engine.courier.inventory.max_weight} kg.", True, (255, 255, 255))
+       self.screen.blit(capacity, (inv_rect.x + inv_w - capacity.get_width() - 12, inv_rect.y + 10))
 
-       self.priority_button = pygame.Rect(inv_rect.x + 10, inv_rect.y + 40, 120, 30)
-       self.deadline_button = pygame.Rect(inv_rect.x + 220, inv_rect.y + 40, 120, 30)
+       # Orden actual (establecido por teclas 1/2)
+       order_label = getattr(self, "ordered_jobs_label", None)
+       if order_label is None:
+           order_label = "Default"
+       order_surf = self.small_font.render(f"Order: {order_label}  (Press 1:Priority  2:Deadline)", True, (180, 180, 180))
+       self.screen.blit(order_surf, (inv_rect.x + 12, inv_rect.y + 46))
 
-       pygame.draw.rect(self.screen, (25, 25, 25), self.priority_button, border_radius=5)
-       pygame.draw.rect(self.screen, (25, 25, 25), self.deadline_button, border_radius=5)
+       # Botones de orden (visual)
+       self.priority_button = pygame.Rect(inv_rect.x + 10, inv_rect.y + 72, 140, 34)
+       self.deadline_button = pygame.Rect(inv_rect.x + 160, inv_rect.y + 72, 140, 34)
+       pygame.draw.rect(self.screen, (40, 40, 40), self.priority_button, border_radius=6)
+       pygame.draw.rect(self.screen, (40, 40, 40), self.deadline_button, border_radius=6)
+       txt_p = self.small_font.render("Priority (1)", True, (255, 255, 255))
+       txt_d = self.small_font.render("Deadline (2)", True, (255, 255, 255))
+       self.screen.blit(txt_p, (self.priority_button.x + 10, self.priority_button.y + 6))
+       self.screen.blit(txt_d, (self.deadline_button.x + 10, self.deadline_button.y + 6))
 
-       txt_p = self.font.render("Priority", True, (255, 255, 255))
-       txt_d = self.font.render("Deadline", True, (255, 255, 255))
-       self.screen.blit(txt_p, (self.priority_button.x + 10, self.priority_button.y + 5))
-       self.screen.blit(txt_d, (self.deadline_button.x + 10, self.deadline_button.y + 5))
+       # Obtener lista de items ordenada
+       items = getattr(self, "ordered_jobs", None)
+       if items is None:
+           items = self.engine.courier.inventory.get_all()
 
-       items = getattr(self, "ordered_jobs", self.engine.courier.inventory.get_all())
-       if items:
-           for i, item in enumerate(items[:5]):  # muestra hasta 5
-               txt = self.small_font.render(
-                   f"{item.id}:  "
-                   f"Priority: {item.priority}  "
-                  # f" Deadline:{item.deadline}"
-                   f"Weight: {item.weight} kg.  "
-                   f"${item.payout}", True, (200, 200, 200)
-               )
-               self.screen.blit(txt, (inv_rect.x + 10, inv_rect.y + 80 + i*30))
+       # Selection index
+       if not hasattr(self, "inv_index") or self.inv_index is None:
+           self.inv_index = 0
+       self.inv_index = max(0, min(self.inv_index, max(0, len(items) - 1)))
+
+       # Área lista y detalles
+       list_x = inv_rect.x + 12
+       list_y = inv_rect.y + 120
+       list_w = int(inv_w * 0.58)
+       list_h = inv_h - (list_y - inv_rect.y) - 60
+       detail_x = list_x + list_w + 12
+       detail_w = inv_rect.x + inv_w - detail_x - 12
+
+       # Draw headers
+       header = self.small_font.render("ID   Priority   Weight   Payout   Dropoff", True, (190, 190, 190))
+       self.screen.blit(header, (list_x, list_y - 26))
+
+       # Show up to visible_count items with simple scrolling if needed
+       visible_count = min(10, max(5, list_h // 28))
+       # compute scroll offset so selected item is visible
+       if len(items) > visible_count:
+           top_index = max(0, min(self.inv_index - visible_count // 2, len(items) - visible_count))
        else:
-           empty = self.font.render("Empty", True, (200, 200, 200))
-           self.screen.blit(empty, (inv_rect.x + 10, inv_rect.y + 80))
+           top_index = 0
+
+       for i in range(visible_count):
+           idx = top_index + i
+           y = list_y + i * 28
+           if idx >= len(items):
+               break
+           job = items[idx]
+           jid = getattr(job, "id", "?")
+           pr = getattr(job, "priority", 0)
+           wt = getattr(job, "weight", 0.0)
+           pay = int(getattr(job, "payout", 0))
+           drop = getattr(job, "dropoff", (0, 0))
+           line = f"{str(jid):<4}   {pr:<8}   {wt:<6.1f}   ${pay:<6}   {drop[0]},{drop[1]}"
+           color = (230, 230, 230) if idx == self.inv_index else (200, 200, 200)
+           # highlight background for selected
+           if idx == self.inv_index:
+               sel_rect = pygame.Rect(list_x - 6, y - 2, list_w + 8, 26)
+               pygame.draw.rect(self.screen, (30, 100, 160), sel_rect, border_radius=4)
+               text_color = (255, 255, 255)
+           else:
+               text_color = color
+           surf = self.small_font.render(line, True, text_color)
+           self.screen.blit(surf, (list_x, y))
+
+       # Detalle del item seleccionado a la derecha
+       detail_y = list_y
+       detail_title = self.font.render("Item details", True, (240, 240, 240))
+       self.screen.blit(detail_title, (detail_x, detail_y))
+       detail_y += detail_title.get_height() + 8
+
+       if items:
+           sel = items[self.inv_index]
+           d_lines = [
+               f"ID: {getattr(sel, 'id', '?')}",
+               f"Payout: ${int(getattr(sel, 'payout', 0))}",
+               f"Weight: {getattr(sel, 'weight', 0):.1f} kg",
+               f"Priority: {getattr(sel, 'priority', 0)}",
+               f"Pickup: {tuple(getattr(sel, 'pickup', (0,0)))}",
+               f"Dropoff: {tuple(getattr(sel, 'dropoff', (0,0)))}",
+               f"Deadline: {getattr(sel, 'deadline', getattr(sel, 'deadline_raw', 'N/A'))}",
+               f"Release time: {getattr(sel, 'release_time', 'N/A')}",
+           ]
+           for line in d_lines:
+               surf = self.small_font.render(line, True, (220, 220, 220))
+               self.screen.blit(surf, (detail_x, detail_y))
+               detail_y += surf.get_height() + 6
+       else:
+           empty = self.small_font.render("Inventory is empty", True, (180, 180, 180))
+           self.screen.blit(empty, (detail_x, detail_y))
+
+       # Footer instructions
+       footer = self.small_font.render("Up/Down: select   R: deliver selected   Q: reject selected   Esc: close", True, (170, 170, 170))
+       self.screen.blit(footer, (inv_rect.x + 12, inv_rect.y + inv_h - 36))
+
+       

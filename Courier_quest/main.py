@@ -89,7 +89,7 @@ def run_start_menu(allow_resume=True):
                 color = (255, 215, 0)
 
             label = font.render(text_display, True, color)
-            screen.blit(label, (200, 140 + idx * 60))
+            screen.blit(label, (130, 140 + idx * 60))
 
         instruction = small_font.render("Use arrow keys to navigate, Enter to select", True, (200, 200, 200))
         screen.blit(instruction, (320 - instruction.get_width() // 2, 370))
