@@ -23,20 +23,30 @@ prev = ''
 prev_ia = ''
 
 class View_game:
-    """Interfaz grÃ¡fica con Pygame para Courier Quest.""" 
+    """Interfaz gráfica con Pygame para Courier Quest.""" 
 
-    def __init__(self, player_name: Optional[str] = None, resume: bool = False):
+    def __init__(self, player_name: Optional[str] = None, resume: bool = False, difficulty: str = "Easy"):
         """Inicializar Pygame, motor y cargar todos los assets."""
         pygame.init()
         pygame.mixer.init
         self.engine = controller_game()
         self.engine.start()
-        #Aqui se uede obtner la opcion que escoja el usuario 1 Facil 2 Medio 3 Dificil
-        self.engine.ia.set_mode(1)  # Modo de dificultad DIFICIL para la IA
+
+        #Mapear dificultad del menú hacia el modo de IA
+        difficulty_map = {
+            "Easy": 1,
+            "Medium": 2,
+            "Hard": 3
+        }
+
+        mode_number = difficulty_map.get(difficulty, 1)  
+        self.engine.ia.set_mode(mode_number)  # ← ahora sí depende del menú
+
         self.player_name = (player_name or "Player").strip() or "Player"
         self.resume_requested = resume
         self.return_to_menu = False
         self.score_repository = ScoreRepository()
+
 
         # Dimensiones de pantalla
         width = self.engine.city_map.width * CELL_SIZE
