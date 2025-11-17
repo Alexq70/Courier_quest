@@ -1309,7 +1309,7 @@ class View_game:
         # ------ 2. DIBUJAR DROP-OFFS DEL JUGADOR ------
         for job in self.engine.courier.inventory.get_all():
             x, y = job.dropoff
-            img = self.tile_images.get("D")
+            img = self.tile_images.get("W_NPC")
             if img:
                 self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 
@@ -1317,7 +1317,7 @@ class View_game:
         # ------ 3. DIBUJAR DROP-OFFS DE LA IA ------
         for job in self.engine.ia.inventory.get_all():
             x, y = job.dropoff
-            img = self.tile_images.get("D")
+            img = self.tile_images.get("W_NPC")
             if img:
                 self.screen.blit(img, (x * CELL_SIZE, y * CELL_SIZE))
 

@@ -13,7 +13,7 @@ class Ia:
         - resistencia (energía), carga, inventario y entregas
     """
 
-    def __init__(self, start_pos: Tuple[int, int], max_weight: float):
+    def __init__(self, start_pos: Tuple[int, int], max_weight: float,city_map=None):
         self.position: Tuple[int, int] = start_pos
         self.max_weight: float = max_weight
         self.current_load: float = 0.0
@@ -28,6 +28,7 @@ class Ia:
         self.defeat_reason: Optional[str] = None  # motivo de derrota si ocurre
         self.mode_deliver = None
         self.prev = None
+        self.city_map = city_map
 
         # Resistencia
         self.stamina_max: float = 100.0
@@ -224,56 +225,56 @@ class Ia:
         self.mode_deliver = mode
         return
 
-    def easy_mode(self, jobs):
-        """
-        Modo fácil:
-        La IA se mueve aleatoriamente pero con tendencia hacia el pickup o dropoff.
-        """
+    def easy_mode(self, jobs, city_map=None):
+            current_x, current_y = self.position
 
-        current_x, current_y = self.position
+            job = None
+            if jobs:
+                job = self.prev if self.prev else random.choice(jobs)
 
-        # Si hay jobs disponibles
-        if jobs:
+            target = None
+            if job:
+                if job in self.inventory.get_all():
+                    target = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
+                else:
+                    target = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
 
-            # Elegir job actual: si prev existe, es el objetivo
-            job = self.prev if self.prev is not None else random.choice(jobs)
+            # Movimiento dirigido
+            if target:
+                tx, ty = target
+                dx = 1 if tx > current_x else -1 if tx < current_x else 0
+                dy = 1 if ty > current_y else -1 if ty < current_y else 0
 
-            job_x = job_y = None
+                if random.random() < 0.9:
+                    nx, ny = current_x + dx, current_y + dy
+                    if self._is_valid_position(nx, ny) and (nx, ny) != self.prev:
+                        return (nx, ny)
 
-            # --- Si YA lo tiene → ir al DROPOFF ---
-            if job in self.inventory.get_all():
-                if hasattr(job, "dropoff_position") and job.dropoff_position:
-                    job_x, job_y = job.dropoff_position
-                elif hasattr(job, "dropoff") and job.dropoff:
-                    job_x, job_y = job.dropoff
-                elif hasattr(job, "get_dropoff_position"):
-                    job_x, job_y = job.get_dropoff_position()
+            # Movimiento aleatorio seguro
+            directions = [(-1,0),(1,0),(0,-1),(0,1)]
+            random.shuffle(directions)
 
-            # --- Si NO lo tiene → ir al PICKUP ---
-            else:
-                if hasattr(job, "pickup_position") and job.pickup_position:
-                    job_x, job_y = job.pickup_position
-                elif hasattr(job, "pickup") and job.pickup:
-                    job_x, job_y = job.pickup
-                elif hasattr(job, "get_pickup_position"):
-                    job_x, job_y = job.get_pickup_position()
+            for dx, dy in directions:
+                nx, ny = current_x + dx, current_y + dy
+                if self._is_valid_position(nx, ny) and (nx, ny) != self.prev:
+                    return (nx, ny)
 
-            # --- Movimiento con tendencia hacia objetivo ---
-            if job_x is not None and job_y is not None:
-                dx = dy = 0
-
-                if job_x > current_x: dx = 1
-                elif job_x < current_x: dx = -1
-                elif job_y > current_y: dy = 1
-                elif job_y < current_y: dy = -1
-
-                if random.random() < 0.4:
-                    return (current_x + dx, current_y + dy)
-
-        # Movimiento aleatorio si no hay objetivo o fallo
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-        dx, dy = random.choice(directions)
-        return (current_x + dx, current_y + dy)
+            return (current_x, current_y)
+        
+    def _is_valid_position(self, x, y):
+            """Verifica si (x,y) es una calle ('C') y no edificio."""
+            if 0 <= x < 29 and 0 <= y < 29 and self.city_map is not None:
+                try:
+                    if hasattr(self.city_map, 'tiles'):
+                        return self.city_map.tiles[y][x] == 'C'
+                    elif hasattr(self.city_map, 'get_tile'):
+                        return self.city_map.get_tile(x, y) == 'C'
+                    else:
+                        return self.city_map[y][x] == 'C'
+                except Exception:
+                    return False
+            return False
+        
 
     def medium_mode(self,jobs):
         """
