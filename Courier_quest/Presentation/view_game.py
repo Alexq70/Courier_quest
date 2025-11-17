@@ -71,6 +71,7 @@ class View_game:
         tiles_dir = assets_dir / "tiles"
         
         self.courier_images = {}
+        self.alonso_images = {}
         self._load_courier_images(tiles_dir)
         self._load_sounds(tiles_dir)
 
@@ -198,34 +199,88 @@ class View_game:
                 print(f"WARN: No se encontrÃ³ icono de clima: {filename}")
 
     def _load_courier_images(self, tiles_dir):
-        """Cargar todas las imÃ¡genes del courier una sola vez."""
+        """Cargar todas las imágenes del courier una sola vez."""
         try:
             image_files = {
-                0: "tiggermovil_izquierda_job.PNG",  
-                1: "tiggermovil_derecha_job.PNG",    
-                2: "tiggermovil_arriba_job.PNG",     
-                3: "tiggermovil_abajo_solo.PNG" ,
-                4:"tiggermovil_izquierda_job_whelee.PNG",
-                5:"tiggermovil_derecha_job_whelee.PNG"    
+                0: "tiggermovil_izquierda_job.PNG",
+                1: "tiggermovil_derecha_job.PNG",
+                2: "tiggermovil_arriba_job.PNG",
+                3: "tiggermovil_abajo_solo.PNG",
+                4: "tiggermovil_izquierda_job_whelee.PNG",
+                5: "tiggermovil_derecha_job_whelee.PNG",
             }
-            
+
+            # Determinar conjunto de imágenes para la IA según mode_deliver (fallback safe)
+            mode_val = 1
+            try:
+                mode_val = int(getattr(self.engine, "ia", None) and getattr(self.engine.ia, "mode_deliver", 1) or 1)
+            except Exception:
+                mode_val = 1
+
+            if mode_val == 1:
+                image_alonso = {
+                    0: "fernando-izquierda.png",
+                    1: "fernando-derecha.png",
+                    2: "fernando-atras.png",
+                    3: "fernando-frente.png",
+                }
+            elif mode_val == 2:
+                image_alonso = {
+                    0: "alonso-izquierda.png",
+                    1: "alonso-derecha.png",
+                    2: "alonso-atras.png",
+                    3: "alonso-frente.png",
+                }
+            elif mode_val == 3:
+                image_alonso = {
+                    0: "hard-izquierda.png",
+                    1: "hard-derecha.png",
+                    2: "hard-atras.png",
+                    3: "hard-frente.png",
+                }
+            else:
+                image_alonso = {
+                    0: "fernando-izquierda.png",
+                    1: "fernando-derecha.png",
+                    2: "fernando-atras.png",
+                    3: "fernando-frente.png",
+                }
+
+            # Cargar imágenes del courier principal
             for direction, filename in image_files.items():
                 courier_file = tiles_dir / filename
                 if courier_file.exists():
                     img = pygame.image.load(str(courier_file)).convert_alpha()
                     new_size = int(CELL_SIZE * 1.5)
                     self.courier_images[direction] = pygame.transform.scale(img, (new_size, new_size))
-                    print(f" Cargada: {filename}")
+                    print(f"Cargada: {filename}")
                 else:
-                    print(f" No encontrada: {filename}")
+                    print(f"No encontrada: {filename}")
                     self.courier_images[direction] = None
-            
+
             if not self.courier_images:
                 self.courier_images = {}
-                
+
+            # Cargar imágenes específicas para la IA (alonso/hard/fernando)
+            for direction, filename in image_alonso.items():
+                courier_file = tiles_dir / filename
+                if courier_file.exists():
+                    img = pygame.image.load(str(courier_file)).convert_alpha()
+                    new_size = int(CELL_SIZE * 1.5)
+                    self.alonso_images[direction] = pygame.transform.scale(img, (new_size, new_size))
+                    print(f"Cargada: {filename}")
+                else:
+                    print(f"No encontrada: {filename}")
+                    self.alonso_images[direction] = None
+
+            if not self.alonso_images:
+                self.alonso_images = {}
+
         except Exception as e:
-            print(f"Error cargando imÃ¡genes del courier: {e}")
+            print(f"Error cargando imágenes del courier: {e}")
             self.courier_images = {}
+            self.alonso_images = {}
+                    
 
     def play_Sound(self,sound_name,loop):
         if sound_name in self.sounds:
@@ -1658,8 +1713,8 @@ class View_game:
         x, y = self.engine.ia.position
         px, py = x * CELL_SIZE, y * CELL_SIZE
 
-        if self.courier_images and self.current_direction_ia in self.courier_images:
-            courier_img = self.courier_images[self.current_direction_ia]
+        if self.alonso_images and self.current_direction_ia in self.alonso_images:
+            courier_img = self.alonso_images[self.current_direction_ia]
             if courier_img is not None:
                 img_width, img_height = courier_img.get_size()
                 draw_x = px - (img_width - CELL_SIZE) // 2
