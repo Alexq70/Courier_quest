@@ -74,7 +74,9 @@ class controller_game:
         return self.game_service.get_last_job()
     
     def set_last_job_ia(self, job):
-        self.game_service.set_last_job(job)
+        # Debe registrar el último trabajo de la IA en su propio campo,
+        # no en el del jugador.
+        self.game_service.set_last_job_ia(job)
     
     def get_last_job_ia(self):
           return self.game_service.get_last_job_ia()

@@ -26,10 +26,11 @@ class CityMap:
         Devuelve True si la posición (x, y) está bloqueada.
         """
         key = self.tiles[y][x]
-        if(key == 'D'):
-            return "blocked",False
-        else:
-          return self.legend[key].get("blocked", False)
+        # Normalizar siempre a booleano; si no hay 'blocked' en la leyenda, se asume transitable
+        if key == 'D':
+            # Si en algún mapa aparece 'D' (punto de entrega/edificio), tratarlo como bloqueado
+            return True
+        return bool(self.legend.get(key, {}).get("blocked", False))
 
     def get_surface_weight(self, x: int, y: int) -> float:
         """

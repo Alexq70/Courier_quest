@@ -28,7 +28,13 @@ class Ia:
         self.defeat_reason: Optional[str] = None  # motivo de derrota si ocurre
         self.mode_deliver = None
         self.prev = None
+        self.last_pos: Optional[Tuple[int, int]] = None
+        self.recent_positions: List[Tuple[int, int]] = []  # memoria corta anti-bucle
         self.city_map = city_map
+        # Cache de ruta/objetivo para modo Difícil
+        self._hard_target: Optional[Tuple[int, int]] = None
+        self._hard_cached_path: Optional[List[Tuple[int, int]]] = None
+        self._hard_path_idx: int = 0
 
         # Resistencia
         self.stamina_max: float = 100.0
@@ -40,6 +46,12 @@ class Ia:
 
     def pick_job(self, job: Job) -> bool:
         """Intenta aceptar un pedido"""
+        # Solo puede tomar paquetes sin dueño o de la propia IA
+        owner = getattr(job, "owner", None)
+        if owner is not None and owner != "ia":
+            return False
+        # Marcar propietario y agregar al inventario
+        job.owner = "ia"
         added = self.inventory.add_job(job)
         if added:
             self.current_load = self.inventory.total_weight()
@@ -111,6 +123,14 @@ class Ia:
             self.move_to((nx, ny))
 
     def move_to(self, position: Tuple[int, int]) -> None:
+        prev = self.position
+        # Memoriza la posición previa para evitar retrocesos inmediatos
+        if prev is not None:
+            self.last_pos = prev
+            self.recent_positions.append(prev)
+            # Mantener historial corto (últimas 12) para penalizar lazos
+            if len(self.recent_positions) > 12:
+                self.recent_positions = self.recent_positions[-12:]
         self.position = position
         self.stamina = max(0.0, self.stamina - self._calculate_stamina_cost())
 
@@ -201,7 +221,14 @@ class Ia:
         """
         Recibe los pedidos candidatos y retorna el proximo movimiento que va a hacer en la vista la ia
         """
-        options = (self.easy_mode(jobs),self.medium_mode(jobs),self.hard_mode(jobs)) # tupla con las opciones de recorrido
+        # Incluir también los jobs que ya están en inventario para priorizar dropoffs
+        try:
+            inv_jobs = list(self.inventory.get_all())
+        except Exception:
+            inv_jobs = []
+        all_jobs = list(jobs) + inv_jobs if jobs else inv_jobs
+
+        options = (self.easy_mode(all_jobs),self.medium_mode(all_jobs),self.hard_mode(all_jobs)) # tupla con las opciones de recorrido
         tupla = [None,None] # tupla que va a retornar (movimiento,coordenada)
         
         if self.mode_deliver == 1:   #Facil
@@ -247,7 +274,7 @@ class Ia:
 
                 if random.random() < 0.9:
                     nx, ny = current_x + dx, current_y + dy
-                    if self._is_valid_position(nx, ny) and (nx, ny) != self.prev:
+                    if self._is_valid_position(nx, ny) and (nx, ny) != self.last_pos:
                         return (nx, ny)
 
             # Movimiento aleatorio seguro
@@ -256,24 +283,27 @@ class Ia:
 
             for dx, dy in directions:
                 nx, ny = current_x + dx, current_y + dy
-                if self._is_valid_position(nx, ny) and (nx, ny) != self.prev:
+                if self._is_valid_position(nx, ny) and (nx, ny) != self.last_pos:
                     return (nx, ny)
 
             return (current_x, current_y)
         
     def _is_valid_position(self, x, y):
-            """Verifica si (x,y) es una calle ('C') y no edificio."""
-            if 0 <= x < 29 and 0 <= y < 29 and self.city_map is not None:
-                try:
-                    if hasattr(self.city_map, 'tiles'):
-                        return self.city_map.tiles[y][x] == 'C'
-                    elif hasattr(self.city_map, 'get_tile'):
-                        return self.city_map.get_tile(x, y) == 'C'
-                    else:
-                        return self.city_map[y][x] == 'C'
-                except Exception:
+            """Verifica si (x,y) es transitable según CityMap (dentro de límites y no bloqueado)."""
+            if self.city_map is None:
+                return False
+            try:
+                width = getattr(self.city_map, 'width', None)
+                height = getattr(self.city_map, 'height', None)
+                if width is None or height is None:
                     return False
-            return False
+                if not (0 <= x < width and 0 <= y < height):
+                    return False
+                # is_blocked debe devolver booleano; si no, usar bool() para normalizar
+                blocked = self.city_map.is_blocked(x, y)
+                return not bool(blocked)
+            except Exception:
+                return False
         
 
     def medium_mode(self, jobs):
@@ -287,30 +317,20 @@ class Ia:
 
         cx, cy = self.position
         
-        # 1) Seleccionar objetivo más cercano
-        best_target = None
-        best_dist = float("inf")
-
-        for job in jobs:
-            if job in self.inventory.get_all():
-                tx, ty = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
-            else:
-                tx, ty = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
-
-            if tx is None or ty is None:
-                continue
-
-            d = abs(cx - tx) + abs(cy - ty)
-            if d < best_dist:
-                best_dist = d
-                best_target = (tx, ty)
-
-        if best_target is None:
+        # 1) Seleccionar objetivo por prioridad (luego deadline, luego distancia)
+        sel = self._select_best_target(jobs)
+        if sel is None:
             return self.easy_mode(jobs)
 
-        tx, ty = best_target
+        _, (tx, ty) = sel
 
-        # 2) Generar candidatos ordenados por distancias
+        # 2) Si la celda objetivo está bloqueada, aproximar a la más cercana transitable
+        if not self._is_valid_position(tx, ty):
+            alt = self._closest_reachable_to(tx, ty, max_radius=6)
+            if alt is not None:
+                tx, ty = alt
+
+        # 2) Generar candidatos ordenados por distancias, evitando retrocesos/loops
         candidates = []
         directions = [
             (cx + 1, cy),  # derecha
@@ -319,16 +339,29 @@ class Ia:
             (cx, cy - 1),  # arriba
         ]
 
+        recent = set(self.recent_positions[-6:])
         for nx, ny in directions:
             if self._is_valid_position(nx, ny):
                 d = abs(nx - tx) + abs(ny - ty)
-                candidates.append(((nx, ny), d))
+                penalty = 0.0
+                if self.last_pos and (nx, ny) == self.last_pos:
+                    penalty += 0.5
+                if (nx, ny) in recent:
+                    penalty += 1.0
+                # Penalización adicional proporcional a visitas recientes
+                try:
+                    visit_count = sum(1 for p in self.recent_positions if p == (nx, ny))
+                except Exception:
+                    visit_count = 0
+                if visit_count:
+                    penalty += min(2.0, 0.3 * visit_count)
+                candidates.append(((nx, ny), d, penalty))
 
         if not candidates:
             return self.easy_mode(jobs)
 
-        # 3) Ordenar por el movimiento que más reduce la distancia
-        candidates.sort(key=lambda x: x[1])
+        # 3) Ordenar por reducción de distancia con penalización de bucle
+        candidates.sort(key=lambda x: (x[1] + x[2], x[2], x[1]))
 
         return candidates[0][0]
 
@@ -339,49 +372,128 @@ class Ia:
         Hard Mode: A* pathfinding real.
         Rodea los edificios, evita loops y encuentra la ruta óptima.
         """
-
         if not jobs:
             return self.easy_mode(jobs)
 
-        cx, cy = self.position
-
-        # buscar job objetivo
-        best_job = None
-        best_dist = float("inf")
-
-        for job in jobs:
-            if job in self.inventory.get_all():
-                tx, ty = getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
-            else:
-                tx, ty = getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
-
-            if tx is None or ty is None:
-                continue
-
-            d = abs(cx - tx) + abs(cy - ty)
-            if d < best_dist:
-                best_dist = d
-                best_job = job
-
-        if not best_job:
+        # 1) Selección de objetivo estable
+        sel = self._select_best_target(jobs)
+        if not sel:
             return self.medium_mode(jobs)
+        _, target = sel
 
-        if best_job in self.inventory.get_all():
-            target = getattr(best_job, "dropoff_position", None) or getattr(best_job, "dropoff", None)
+        # Normalizar objetivo si está bloqueado
+        tx, ty = target
+        if not self._is_valid_position(tx, ty):
+            adjusted = self._closest_reachable_to(tx, ty, max_radius=8)
+            if adjusted is None:
+                return self.medium_mode(jobs)
+            target = adjusted
+
+        # 2) Cachear y mantener ruta mientras el objetivo no cambie
+        need_recalc = False
+        if self._hard_target != target:
+            need_recalc = True
+        elif not self._hard_cached_path:
+            need_recalc = True
         else:
-            target = getattr(best_job, "pickup_position", None) or getattr(best_job, "pickup", None)
+            # si nuestra posición no coincide con el segmento actual, intentar resincronizar
+            if self.position not in self._hard_cached_path:
+                need_recalc = True
+            else:
+                # actualizar índice al punto actual
+                try:
+                    self._hard_path_idx = self._hard_cached_path.index(self.position)
+                except ValueError:
+                    need_recalc = True
 
-        if not target:
-            return self.medium_mode(jobs)
+        if need_recalc:
+            path = self.astar(self.position, target)
+            if not path or len(path) < 2:
+                # fallo de planificación: recurrir a medio
+                return self.medium_mode(jobs)
+            self._hard_target = target
+            self._hard_cached_path = path
+            self._hard_path_idx = 0
+        else:
+            path = self._hard_cached_path
 
-        # ejecutar A*
-        path = self.astar(self.position, target)
+        # 3) Avanzar un paso en la ruta cacheada
+        # asegurar índice en el nodo actual
+        if self._hard_path_idx < len(path) and path[self._hard_path_idx] != self.position:
+            try:
+                self._hard_path_idx = path.index(self.position)
+            except ValueError:
+                # desincronizado, recalcular en próxima iteración
+                return self.medium_mode(jobs)
 
-        if path and len(path) > 1:
-            return path[1]   # siguiente paso
+        next_idx = self._hard_path_idx + 1
+        if next_idx < len(path):
+            return path[next_idx]
 
-        # si A* falla, fallback al greedy
-        return self.medium_mode(jobs)
+        # estamos en el objetivo; no hay siguiente paso
+        return (self.position[0], self.position[1])
+
+    def _get_target_for_job(self, job: Job) -> Optional[Tuple[int, int]]:
+        if job in self.inventory.get_all():
+            return getattr(job, "dropoff_position", None) or getattr(job, "dropoff", None)
+        return getattr(job, "pickup_position", None) or getattr(job, "pickup", None)
+
+    def _select_best_target(self, jobs) -> Optional[Tuple[Job, Tuple[int, int]]]:
+        """
+        Selecciona (job, target) priorizando:
+        1) mayor prioridad
+        2) deadline más cercano
+        3) menor distancia desde la posición actual
+        Prefiere objetivos válidos (con coordenadas)
+        """
+        if not jobs:
+            return None
+        cx, cy = self.position
+        best = None
+        best_key = None
+        for job in jobs:
+            target = self._get_target_for_job(job)
+            if not target:
+                continue
+            tx, ty = target
+            prio = getattr(job, "priority", 0)
+            deadline_ts = job.get_deadline_timestamp() if hasattr(job, "get_deadline_timestamp") else None
+            if deadline_ts is None:
+                deadline_ts = float("inf")
+            dist = abs(cx - tx) + abs(cy - ty)
+            key = (-int(prio), float(deadline_ts), int(dist))
+            if best_key is None or key < best_key:
+                best_key = key
+                best = (job, (tx, ty))
+        return best
+
+    def _closest_reachable_to(self, tx: int, ty: int, max_radius: int = 6) -> Optional[Tuple[int, int]]:
+        """
+        Busca una celda transitable cercana a (tx, ty). Explora anillos crecientes hasta max_radius
+        y selecciona la más cercana al objetivo (y luego al agente) para minimizar bucles.
+        """
+        if self._is_valid_position(tx, ty):
+            return (tx, ty)
+
+        cx, cy = self.position
+        best: Optional[Tuple[int, int]] = None
+        best_key = (float('inf'), float('inf'))
+
+        for r in range(1, max_radius + 1):
+            # recorrer el contorno manhattan de radio r
+            for dx in range(-r, r + 1):
+                dy_candidates = [r - abs(dx), -(r - abs(dx))]
+                for dy in dy_candidates:
+                    nx, ny = tx + dx, ty + dy
+                    if self._is_valid_position(nx, ny):
+                        key = (abs(nx - tx) + abs(ny - ty), abs(nx - cx) + abs(ny - cy))
+                        if key < best_key:
+                            best_key = key
+                            best = (nx, ny)
+            if best is not None:
+                return best
+
+        return None
     
     def _neighbors(self, node):
         x, y = node
@@ -442,13 +554,14 @@ class Ia:
         except Exception:
             return None
 
-        if self.position[0] > ox:
-            return 2  # UP
-        if self.position[0] < ox:
-            return 3  # DOWN
+        # Mapeo correcto: 0=LEFT,1=RIGHT,2=UP,3=DOWN
         if self.position[1] > oy:
-            return 0  # LEFT
+            return 2  # UP
         if self.position[1] < oy:
+            return 3  # DOWN
+        if self.position[0] > ox:
+            return 0  # LEFT
+        if self.position[0] < ox:
             return 1  # RIGHT
 
         # Si ya estamos en la misma celda

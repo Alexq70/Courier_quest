@@ -38,6 +38,8 @@ class Job:
         self._deadline_timestamp: Optional[float] = None
         self._release_timestamp: Optional[float] = None
         self._total_duration_cache: Optional[float] = None
+        # Propietario del pedido: None | 'player' | 'ia'
+        self.owner: Optional[str] = None
 
     def _format_deadline_display(self, value: DeadlineInput | None) -> str:
         if value is None:

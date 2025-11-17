@@ -44,8 +44,10 @@ class GameService:
                 job.bind_session_start(self.session_start)
 
     def job_most_nearly(self, curr_position):
-        """Busca el job mas cercano a la posicion del jugador."""
-        candidates = list(self.jobs) + list(self.courier.inventory.get_all())
+        """Busca el job mas cercano a la posicion del jugador.
+        Considera solo jobs del mapa sin dueño y los del inventario del jugador."""
+        jobs_on_map = [j for j in self.jobs if getattr(j, "owner", None) in (None, "player")]
+        candidates = jobs_on_map + list(self.courier.inventory.get_all())
         if not candidates:
             return None
 
@@ -98,27 +100,36 @@ class GameService:
     
     #---------------------- IA LOGIC -------------------------------
     def job_most_nearly_ia(self, ia_position):
-        """Busca el job más cercano a la IA con distancia máxima 5."""
-        candidates = list(self.jobs) + list(self.ia.inventory.get_all())
+        """Selecciona el job cercano (<=5) priorizando prioridad; empates por distancia.
+        Prefiere entregar (inventario) sobre recoger si todo lo demás empata.
+        Considera solo jobs del mapa sin dueño o asignados a IA."""
+        jobs_on_map = [j for j in self.jobs if getattr(j, "owner", None) in (None, "ia")]
+        candidates = jobs_on_map + list(self.ia.inventory.get_all())
         if not candidates:
             return None
 
-        nearest = None
-        min_dist = float("inf")
+        best = None
+        best_key = None
+        inv_jobs = set(self.ia.inventory.get_all())
 
         for job in candidates:
-            # Si el job está en inventario → ir al dropoff
-            if job in self.ia.inventory.get_all():
-                dist = self.distance(job.dropoff, ia_position)
+            if job in inv_jobs:
+                target = job.dropoff
+                is_inv = 0  # preferir entregar sobre recoger
             else:
-                dist = self.distance(job.pickup, ia_position)
+                target = job.pickup
+                is_inv = 1
 
-            # Debe estar relativamente cerca para evitar IA perdida
-            if dist <= 5 and dist < min_dist:
-                min_dist = dist
-                nearest = job
+            dist = self.distance(target, ia_position)
+            if dist > 5:
+                continue
+            prio = getattr(job, "priority", 0)
+            key = (-int(prio), float(dist), is_inv)
+            if best_key is None or key < best_key:
+                best_key = key
+                best = job
 
-        return nearest
+        return best
 
     
     def _next_movement_ia(self):

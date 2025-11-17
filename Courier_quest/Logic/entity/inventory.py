@@ -21,7 +21,8 @@ class Inventory:
         self.max_weight = max_weight
         self.head: Optional[Node] = None
         self.tail: Optional[Node] = None
-        self._heap = []  # cola de prioridad
+        self._heap = []  # cola de prioridad: (-priority, deadline_ts, counter, job)
+        self._counter = 0  # desempate estable para heap
 
     # -------------------------
     # Métodos internos
@@ -58,7 +59,8 @@ class Inventory:
             new_node.prev = self.tail
             self.tail = new_node
 
-        heapq.heappush(self._heap, (-job.priority, self._deadline_key(job), job))
+        heapq.heappush(self._heap, (-job.priority, self._deadline_key(job), self._counter, job))
+        self._counter += 1
         return True
 
     def remove_job(self, job : Job) -> bool:
@@ -77,7 +79,8 @@ class Inventory:
                     self.tail = current.prev
 
                 # remover del heap
-                self._heap = [entry for entry in self._heap if entry[2] != job]
+                # entry = (-priority, deadline, counter, job)
+                self._heap = [entry for entry in self._heap if entry[3] != job]
                 heapq.heapify(self._heap)
                 return True
             current = current.next
@@ -103,13 +106,15 @@ class Inventory:
 
     def peek_next(self):
         """Devuelve el siguiente job en la cola de prioridad sin eliminarlo."""
-        return self._heap[0][2] if self._heap else None
+        # entry = (-priority, deadline, counter, job)
+        return self._heap[0][3] if self._heap else None
 
     def pop_next(self):
         """Saca y devuelve el siguiente job según la cola de prioridad."""
         if not self._heap:
             return None
-        _, _, job = heapq.heappop(self._heap)
+        # entry = (-priority, deadline, counter, job)
+        _, _, _, job = heapq.heappop(self._heap)
         self.remove_job(job)
         return job
     
