@@ -350,7 +350,7 @@ class View_game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "running":
-                        self._finish
+                        self._finish_game(reason="Ended by player")
                     else:
                         self.return_to_menu = True
                         self.running = False
