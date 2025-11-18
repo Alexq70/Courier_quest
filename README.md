@@ -1,7 +1,7 @@
 # Courier_quest
 
 # Informacion Importante
-# Se debe descargar la version de la rama main, ya que este contiene la version final
+# Se debe descargar la version de la rama ALEXX, ya que este contiene la version final
 # El juego inicia desde la clase main.py ubicada en la carpeta Courier_quest
 
 
